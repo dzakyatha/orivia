@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { spacing, fontFamily, colors, radius, fontSize } from '../../styles/variables.jsx';
+import logoPrimary from '../../assets/logo/logoPrimary.png';
 
 
 
@@ -55,7 +56,7 @@ const Navbar = ({ variant = 'main' }) => {
       <nav style={navStyle}>
         <div style={leftStyle}>
           <Link to="/login">
-            <img src="/src/assets/logo/logoPrimary.png" alt="ORIVIA" style={{ height: 36 }} />
+            <img src={logoPrimary} alt="ORIVIA" style={{ height: 36 }} />
           </Link>
         </div>
         <div style={rightStyle}>
@@ -69,7 +70,7 @@ const Navbar = ({ variant = 'main' }) => {
     <nav style={navStyle}>
       <div style={leftStyle}>
         <Link to="/home">
-          <img src="/src/assets/logo/logoPrimary.png" alt="ORIVIA" style={{ height: 36 }} />
+          <img src={logoPrimary} alt="ORIVIA" style={{ height: 36 }} />
         </Link>
       </div>
       <div style={rightStyle}>

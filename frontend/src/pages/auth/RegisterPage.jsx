@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { colors, spacing, radius, fontSize, lineHeight, fontFamily, shadows, transitions } from '../../styles/variables.jsx';
 import backgroundImage from '../../assets/images/authbg.jpg';
 import cardImage from '../../assets/images/authcard.jpg';
+import logoPrimary from '../../assets/logo/logoPrimary.png';
 import { Link } from 'react-router-dom';
 import Button from '../../components/ui/Button.jsx';
 import { AuthCard } from '../../components/ui/Card.jsx';
@@ -45,6 +46,26 @@ const RegisterPage = () => {
       setError('Passwords do not match');
       return;
     }
+    
+    // Password strength validation
+    const minLength = 8;
+    const hasUpperCase = /[A-Z]/.test(formData.password);
+    const hasLowerCase = /[a-z]/.test(formData.password);
+    const hasNumber = /\d/.test(formData.password);
+    
+    if (formData.password.length < minLength) {
+      setError(`Password must be at least ${minLength} characters long`);
+      return;
+    }
+    if (!hasUpperCase || !hasLowerCase) {
+      setError('Password must contain both uppercase and lowercase letters');
+      return;
+    }
+    if (!hasNumber) {
+      setError('Password must contain at least one number');
+      return;
+    }
+    
     setLoading(true);
     setTimeout(() => {
       console.log('Register:', formData);
@@ -251,7 +272,7 @@ const RegisterPage = () => {
       ...(isMobile ? { position: 'relative', width: '100%', opacity: 1, visibility: 'visible' } : {}),
     }}>
       <div style={styles.header}>
-        <img src="/src/assets/logo/logoPrimary.png" alt="ORIVIA" style={styles.logo} />
+        <img src={logoPrimary} alt="ORIVIA" style={styles.logo} />
         <h2 style={styles.title}>Start your trip</h2>
       </div>
 

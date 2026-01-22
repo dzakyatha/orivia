@@ -3,16 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { colors, spacing, radius, fontSize, lineHeight, fontFamily, shadows, transitions } from '../../styles/variables.jsx';
 import backgroundImage from '../../assets/images/authbg.jpg';
 import cardImage from '../../assets/images/authcard.jpg';
+import logoPrimary from '../../assets/logo/logoPrimary.png';
 import { Link } from 'react-router-dom';
 import Button from '../../components/ui/Button.jsx';
 import { AuthCard } from '../../components/ui/Card.jsx';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
     password: '',
-    confirmPassword: '',
   });
 
   const [loading, setLoading] = useState(false);
@@ -236,8 +235,8 @@ const LoginPage = () => {
       ...styles.content,
       ...(isMobile ? { position: 'relative', width: '100%', opacity: 1, visibility: 'visible' } : {}),
     }}>
-      <div style={styles.header}>
-        <img src="/src/assets/logo/logoPrimary.png" alt="ORIVIA" style={styles.logo} />
+        <div style={styles.header}>
+        <img src={logoPrimary} alt="ORIVIA" style={styles.logo} />
         <h2 style={styles.title}>Continue your journey</h2>
       </div>
 

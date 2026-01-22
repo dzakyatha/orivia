@@ -16,16 +16,9 @@ const LoginPage = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // mobile detection removed; styles are desktop-focused
 
   const handleChange = (e) => {
     const { name, value } = e.currentTarget;
@@ -88,7 +81,7 @@ const LoginPage = () => {
     },
     contentWrapper: {
       display: 'flex',
-      width: isMobile ? '100%' : '100%',
+      width: '100%',
       height: '100%',
       position: 'relative',
       alignItems: 'center',
@@ -98,16 +91,16 @@ const LoginPage = () => {
       top: 0,
       width: '55%',
       height: '100%',
-      padding: isMobile ? spacing.lg : spacing.xl,
+      padding: spacing.xl,
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'center',
       gap: spacing.sm,
       boxSizing: 'border-box',
-      minHeight: isMobile ? 'auto' : '750px',
+      minHeight: '750px',
       transition: 'opacity 0.4s ease, visibility 0.4s ease',
       left: 0,
-      paddingRight: isMobile ? spacing.lg : spacing.lg,
+      paddingRight: spacing.lg,
       opacity: 1,
       visibility: 'visible',
     },
@@ -120,7 +113,7 @@ const LoginPage = () => {
       marginBottom: spacing.xs,
     },
     title: {
-      fontSize: isMobile ? fontSize['5xl'] : fontSize['5xl'],
+      fontSize: fontSize['5xl'],
       fontWeight: 700,
       color: colors.accent3,
       lineHeight: lineHeight.tight,
@@ -233,7 +226,6 @@ const LoginPage = () => {
   const renderForm = () => (
     <div style={{
       ...styles.content,
-      ...(isMobile ? { position: 'relative', width: '100%', opacity: 1, visibility: 'visible' } : {}),
     }}>
         <div style={styles.header}>
         <img src={logoPrimary} alt="ORIVIA" style={styles.logo} />
@@ -333,7 +325,7 @@ const LoginPage = () => {
     <div style={styles.container}>
       <div style={styles.background}></div>
       <div style={styles.wrapper}>
-        <AuthCard image={cardImage} isMobile={isMobile} imageWrapperStyle={{ left: isMobile ? 0 : '55%' }}>
+        <AuthCard image={cardImage} imageWrapperStyle={{ left: '55%' }}>
           <div style={styles.contentWrapper}>
             {renderForm()}
           </div>

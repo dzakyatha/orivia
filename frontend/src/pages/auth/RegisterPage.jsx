@@ -20,15 +20,6 @@ const RegisterPage = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
 
   const handleChange = (e) => {
@@ -90,7 +81,7 @@ const RegisterPage = () => {
     },
     contentWrapper: {
       display: 'flex',
-      width: isMobile ? '100%' : '100%',
+      width: '100%',
       height: '100%',
       position: 'relative',
       alignItems: 'center',
@@ -101,26 +92,26 @@ const RegisterPage = () => {
       bottom: 0,
       width: '55%',
       height: '100%',
-      padding: isMobile ? spacing.lg : spacing.xl,
+      padding: spacing.xl,
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'center',
       gap: spacing.sm,
       boxSizing: 'border-box',
-      minHeight: isMobile ? 'auto' : '750px',
+      minHeight: '750px',
       transition: 'opacity 0.4s ease, visibility 0.4s ease',
       zIndex: 20, 
       paddingTop: spacing.xl, 
     },
     contentLogin: {
       left: 0,
-      paddingRight: isMobile ? spacing.lg : spacing.lg,
+      paddingRight: spacing.lg,
       opacity: 1,
       visibility: 'visible',
     },
     contentRegister: {
       right: 0,
-      paddingLeft: isMobile ? spacing.lg : spacing.lg,
+      paddingLeft: spacing.lg,
       opacity: 1,
       visibility: 'visible',
     },
@@ -133,7 +124,7 @@ const RegisterPage = () => {
       marginBottom: spacing.xs,
     },
     title: {
-      fontSize: isMobile ? fontSize['5xl'] : fontSize['5xl'],
+      fontSize: fontSize['5xl'],
       fontWeight: 700,
       color: colors.accent3,
       lineHeight: lineHeight.tight,
@@ -249,7 +240,6 @@ const RegisterPage = () => {
     <div style={{
       ...styles.content,
       ...styles.contentRegister,
-      ...(isMobile ? { position: 'relative', width: '100%', opacity: 1, visibility: 'visible' } : {}),
     }}>
       <div style={styles.header}>
         <img src={logoPrimary} alt="ORIVIA" style={styles.logo} />
@@ -422,8 +412,8 @@ const RegisterPage = () => {
     <div style={styles.container}>
       <div style={styles.background}></div>
       <div style={styles.wrapper}>
-        <AuthCard image={cardImage} isMobile={isMobile} imageWrapperStyle={{ left: isMobile ? 0 : '0' }}>
-          <div style={isMobile ? { padding: spacing.lg } : styles.contentWrapper}>
+        <AuthCard image={cardImage} imageWrapperStyle={{ left: '0' }}>
+          <div style={styles.contentWrapper}>
             {renderForm()}
           </div>
         </AuthCard>

@@ -1,14 +1,19 @@
+console.log("INI REGISTER PAGE YANG DIEDIT!!!");
+
 import React, { useState, useEffect } from 'react';
 import { colors, spacing, radius, fontSize, lineHeight, fontFamily, shadows, transitions } from '../../styles/variables.jsx';
+import backgroundImage from '../../assets/images/authbg.jpg';
+import cardImage from '../../assets/images/authcard.jpg';
+import { Link } from 'react-router-dom';
 
 const RegisterPage = () => {
-  const [isRegister, setIsRegister] = useState(true);
-  const [isAnimating, setIsAnimating] = useState(false);
+  // Removed isRegister and related logic
+  // ...existing code...
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    role: '',
+    role: 'customer',
     confirmPassword: '',
   });
 
@@ -24,63 +29,6 @@ const RegisterPage = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Inject keyframes animation
-  useEffect(() => {
-    const styleId = 'auth-animations';
-    if (!document.getElementById(styleId)) {
-      const style = document.createElement('style');
-      style.id = styleId;
-      style.textContent = `
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes slideTextLeft {
-          0% {
-            opacity: 1;
-            transform: translateX(0);
-          }
-          50% {
-            opacity: 0;
-            transform: translateX(-30px);
-          }
-          51% {
-            opacity: 0;
-            transform: translateX(30px);
-          }
-          100% {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-        @keyframes slideTextRight {
-          0% {
-            opacity: 1;
-            transform: translateX(0);
-          }
-          50% {
-            opacity: 0;
-            transform: translateX(30px);
-          }
-          51% {
-            opacity: 0;
-            transform: translateX(-30px);
-          }
-          100% {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.currentTarget;
@@ -93,17 +41,15 @@ const RegisterPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    if (isRegister && formData.password !== formData.confirmPassword) {
+    if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-
     setLoading(true);
     setTimeout(() => {
-      console.log(isRegister ? 'Register:' : 'Login:', formData);
+      console.log('Register:', formData);
       setLoading(false);
-      alert(`${isRegister ? 'Registration' : 'Login'} successful! (Demo)`);
+      alert('Registration successful! (Demo)');
     }, 1000);
   };
 
@@ -112,33 +58,10 @@ const RegisterPage = () => {
     alert('Google authentication not yet configured');
   };
 
-  const toggleForm = () => {
-    if (isAnimating) return;
-    setIsAnimating(true);
-    
-    setTimeout(() => {
-      setIsRegister(!isRegister);
-      setError('');
-      setFormData({
-        name: '',
-        email: '',
-        password: '',
-        role: 'customer',
-        confirmPassword: '',
-      });
-    }, 300);
-
-    setTimeout(() => {
-      setIsAnimating(false);
-    }, 600);
-  };
+  // Removed toggleForm and isRegister logic
 
   // Animation helper for form elements
-  const getFormAnimationStyle = (index) => ({
-    animation: isAnimating ? 'none' : `fadeIn 0.4s ease forwards`,
-    animationDelay: `${index * 0.08}s`,
-    opacity: 0,
-  });
+  // ...existing code...
 
   // Styles using variables.jsx
   const styles = {
@@ -159,7 +82,10 @@ const RegisterPage = () => {
       left: 0,
       width: '100%',
       height: '100%',
-      background: `linear-gradient(135deg, ${colors.accent5} 0%, ${colors.accent4} 50%, ${colors.bg} 100%)`,
+      background: `linear-gradient(100deg, ${colors.text}66, ${colors.textLight}33), url(${backgroundImage}`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
       zIndex: -1,
     },
     wrapper: {
@@ -175,22 +101,22 @@ const RegisterPage = () => {
       borderRadius: radius.xl,
       overflow: 'hidden',
       boxShadow: shadows.xl,
-      border: `3px solid ${colors.bg}`,
+      border: `10px solid ${colors.bg}`,
       minHeight: isMobile ? 'auto' : '750px',
     },
     imageWrapper: {
       position: isMobile ? 'relative' : 'absolute',
       top: 0,
-      left: isRegister ? '0' : '55%',
+      left: '0',
       width: isMobile ? '100%' : '45%',
       height: isMobile ? '150px' : '100%',
-      zIndex: 5,
+      zIndex: 10,
       transition: 'left 0.6s cubic-bezier(0.68, -0.15, 0.32, 1.15)',
     },
     imageSection: {
       width: '100%',
       height: '100%',
-      background: `linear-gradient(135deg, ${colors.accent5}ee, ${colors.accent4}dd), url('https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?w=600&h=800&fit=crop')`,
+      background: `linear-gradient(100deg, ${colors.text}66, ${colors.textLight}33), url(${cardImage}`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       borderRadius: isMobile ? 0 : radius.lg,
@@ -203,9 +129,7 @@ const RegisterPage = () => {
       boxSizing: 'border-box',
     },
     imageTextWrapper: {
-      animation: isAnimating 
-        ? `${isRegister ? 'slideTextLeft' : 'slideTextRight'} 0.6s ease forwards` 
-        : 'none',
+      // No animation
     },
     imageText: {
       color: colors.bg,
@@ -251,14 +175,14 @@ const RegisterPage = () => {
     contentLogin: {
       left: 0,
       paddingRight: isMobile ? spacing.lg : spacing.lg,
-      opacity: isRegister ? 0 : 1,
-      visibility: isRegister ? 'hidden' : 'visible',
+      opacity: 1,
+      visibility: 'visible',
     },
     contentRegister: {
       right: 0,
       paddingLeft: isMobile ? spacing.lg : spacing.lg,
-      opacity: isRegister ? 1 : 0,
-      visibility: isRegister ? 'visible' : 'hidden',
+      opacity: 1,
+      visibility: 'visible',
     },
     header: {
       marginBottom: spacing.xs,
@@ -284,7 +208,7 @@ const RegisterPage = () => {
     formGroup: {
       display: 'flex',
       flexDirection: 'column',
-      gap: spacing.sm,
+      gap: spacing.xs,
     },
     label: {
       fontSize: fontSize.sm,
@@ -325,10 +249,12 @@ const RegisterPage = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: spacing.xl,
+      gap: spacing.sm,
       width: '100%',
       boxSizing: 'border-box',
-      marginTop: spacing.xl,
+    },
+    buttonWithMargin: {
+      marginTop: spacing.md,
     },
     buttonPrimary: {
       backgroundColor: colors.accent5,
@@ -379,112 +305,75 @@ const RegisterPage = () => {
     },
   };
 
-  const renderForm = (isRegisterForm) => (
+  const renderForm = () => (
     <div style={{
       ...styles.content,
-      ...(isRegisterForm ? styles.contentRegister : styles.contentLogin),
+      ...styles.contentRegister,
       ...(isMobile ? { position: 'relative', width: '100%', opacity: 1, visibility: 'visible' } : {}),
-    }} key={isRegisterForm ? 'register-form' : 'login-form'}>
-      <div style={{...styles.header, ...getFormAnimationStyle(0)}}>
+    }}>
+      <div style={styles.header}>
         <img src="/src/assets/logo/logoPrimary.png" alt="ORIVIA" style={styles.logo} />
-        <h2 style={styles.title}>
-          {isRegisterForm ? ('Continue your journey') : (<>Start your <br /> perfect trip</>)}
-        </h2>
+        <h2 style={styles.title}>Start your trip</h2>
       </div>
 
       <form style={styles.form} onSubmit={handleSubmit}>
-        {isRegisterForm && (
-          <>
-          {/* help meeeee knp ini gaada di displayyyyyyyyyyyyyyyyyy:((((((((((((((((( */}
-            {/* <div style={{...styles.formGroup, ...getFormAnimationStyle(1)}}>
-              <label style={styles.label} htmlFor="role-reg">
-                Role
-              </label>
-              <select
-                style={{...styles.input, cursor: 'pointer'}}
-                id="role-reg"
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                onFocus={(e) => {
-                  e.target.style.borderColor = colors.accent5;
-                  e.target.style.boxShadow = shadows.md;
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = colors.textLight;
-                  e.target.style.boxShadow = 'none';
-                }}
-                required
-              >
-                <option value="customer">Customer</option>
-                <option value="agent">Agent</option>
-              </select>
-            </div> */}
-            <div style={{ ...styles.formGroup, ...getFormAnimationStyle(1) }}>
-              <label style={styles.label} htmlFor="role-reg">
-                Role
-              </label>
+        <div style={styles.formGroup}>
+          <label style={styles.label} htmlFor="role-reg">
+            Role
+          </label>
+          <select
+            style={{...styles.input, cursor: 'pointer'}} 
+            id="role-reg"
+            name="role"
+            value={formData.role}
+            onChange={handleChange}
+            onFocus={(e) => {
+              e.target.style.borderColor = colors.accent5;
+              e.target.style.boxShadow = shadows.md;
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = colors.textLight;
+              e.target.style.boxShadow = 'none';
+            }}
+            required
+          >
+            <option value="customer">Customer</option>
+            <option value="agent">Agent</option>
+          </select>
+        </div>
 
-              <select
-                style={{ ...styles.input, cursor: 'pointer' }}
-                id="role-reg"
-                name="role"
-                value={formData.role || ''}   // ✅ safety
-                onChange={handleChange}
-                onFocus={(e) => {
-                  e.target.style.borderColor = colors.accent5;
-                  e.target.style.boxShadow = shadows.md;
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = colors.textLight;
-                  e.target.style.boxShadow = 'none';
-                }}
-                required
-              >
-                {/* ✅ OPTION DEFAULT */}
-                <option value="" disabled>
-                  Select role
-                </option>
+        <div style={styles.formGroup}>
+          <label style={styles.label} htmlFor="name-reg">
+            Full Name
+          </label>
+          <input
+            style={styles.input}
+            type="text"
+            id="name-reg"
+            name="name"
+            placeholder="John Doe"
+            value={formData.name}
+            onChange={handleChange}
+            onFocus={(e) => {
+              e.target.style.borderColor = colors.accent5;
+              e.target.style.boxShadow = shadows.md;
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = colors.textLight;
+              e.target.style.boxShadow = 'none';
+            }}
+            required
+          />
+        </div>
 
-                <option value="customer">Customer</option>
-                <option value="agent">Agent</option>
-              </select>
-            </div>
-
-            <div style={{...styles.formGroup, ...getFormAnimationStyle(2)}}>
-              <label style={styles.label} htmlFor={`name-${isRegisterForm ? 'reg' : 'log'}`}>
-                Full Name
-              </label>
-              <input
-                style={styles.input}
-                type="text"
-                id={`name-${isRegisterForm ? 'reg' : 'log'}`}
-                name="name"
-                placeholder="John Doe"
-                value={formData.name}
-                onChange={handleChange}
-                onFocus={(e) => {
-                  e.target.style.borderColor = colors.accent5;
-                  e.target.style.boxShadow = shadows.md;
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = colors.textLight;
-                  e.target.style.boxShadow = 'none';
-                }}
-                required={isRegisterForm && isRegister}
-              />
-            </div>
-          </>
-        )}
-
-        <div style={{...styles.formGroup, ...getFormAnimationStyle(isRegisterForm ? 3 : 1)}}>
-          <label style={styles.label} htmlFor={`email-${isRegisterForm ? 'reg' : 'log'}`}>
+        <div style={styles.formGroup}>
+          <label style={styles.label} htmlFor="email-reg">
             Email
           </label>
           <input
             style={styles.input}
             type="email"
-            id={`email-${isRegisterForm ? 'reg' : 'log'}`}
+            id="email-reg"
             name="email"
             placeholder="your@email.com"
             value={formData.email}
@@ -501,16 +390,16 @@ const RegisterPage = () => {
           />
         </div>
 
-        <div style={{...styles.formGroup, ...getFormAnimationStyle(isRegisterForm ? 4 : 2)}}>
-          <label style={styles.label} htmlFor={`password-${isRegisterForm ? 'reg' : 'log'}`}>
+        <div style={styles.formGroup}>
+          <label style={styles.label} htmlFor="password-reg">
             Password
           </label>
           <input
             style={styles.input}
             type="password"
-            id={`password-${isRegisterForm ? 'reg' : 'log'}`}
+            id="password-reg"
             name="password"
-            placeholder={isRegisterForm ? "Create a strong password" : "Enter your password"}
+            placeholder="Create a strong password"
             value={formData.password}
             onChange={handleChange}
             onFocus={(e) => {
@@ -525,45 +414,43 @@ const RegisterPage = () => {
           />
         </div>
 
-        {isRegisterForm && (
-          <div style={{...styles.formGroup, ...getFormAnimationStyle(5)}}>
-            <label style={styles.label} htmlFor="confirmPassword-reg">
-              Confirm Password
-            </label>
-            <input
-              style={styles.input}
-              type="password"
-              id="confirmPassword-reg"
-              name="confirmPassword"
-              placeholder="Confirm your password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              onFocus={(e) => {
-                e.target.style.borderColor = colors.accent5;
-                e.target.style.boxShadow = shadows.md;
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = colors.textLight;
-                e.target.style.boxShadow = 'none';
-              }}
-              required={isRegisterForm && isRegister}
-            />
-          </div>
-        )}
-        
+        <div style={styles.formGroup}>
+          <label style={styles.label} htmlFor="confirmPassword-reg">
+            Confirm Password
+          </label>
+          <input
+            style={styles.input}
+            type="password"
+            id="confirmPassword-reg"
+            name="confirmPassword"
+            placeholder="Confirm your password"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            onFocus={(e) => {
+              e.target.style.borderColor = colors.accent5;
+              e.target.style.boxShadow = shadows.md;
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = colors.textLight;
+              e.target.style.boxShadow = 'none';
+            }}
+            required
+          />
+        </div>
 
-        {error && isRegister === isRegisterForm && <div style={styles.error}>{error}</div>}
+        {error && <div style={styles.error}>{error}</div>}
 
-        <div style={getFormAnimationStyle(isRegisterForm ? 6 : 3)}>
+        <div>
           <button
             type="submit"
             style={{
               ...styles.button,
               ...styles.buttonPrimary,
+              ...styles.buttonWithMargin,
               opacity: loading ? 0.7 : 1,
               cursor: loading ? 'not-allowed' : 'pointer',
             }}
-            disabled={loading || isRegister !== isRegisterForm}
+            disabled={loading}
             onMouseEnter={(e) => {
               if (!loading) {
                 e.target.style.backgroundColor = colors.accent4;
@@ -579,20 +466,18 @@ const RegisterPage = () => {
               }
             }}
           >
-            {loading && isRegister === isRegisterForm
-              ? (isRegisterForm ? 'Creating account...' : 'Logging in...') 
-              : (isRegisterForm ? 'Sign Up' : 'Login')}
+            {loading ? 'Creating account...' : 'Sign Up'}
           </button>
         </div>
       </form>
 
-      <div style={{...styles.divider, ...getFormAnimationStyle(isRegisterForm ? 7 : 4)}}>
+      <div style={styles.divider}>
         <div style={styles.dividerLine}></div>
         <span style={styles.dividerText}>or</span>
         <div style={styles.dividerLine}></div>
       </div>
 
-      <div style={getFormAnimationStyle(isRegisterForm ? 8 : 5)}>
+      <div>
         <button
           type="button"
           style={{
@@ -600,7 +485,7 @@ const RegisterPage = () => {
             ...styles.buttonGoogle,
           }}
           onClick={handleGoogleAuth}
-          disabled={isRegister !== isRegisterForm}
+          disabled={loading}
           onMouseEnter={(e) => {
             e.target.style.backgroundColor = colors.primary;
             e.target.style.transform = 'translateY(-2px)';
@@ -613,27 +498,13 @@ const RegisterPage = () => {
           }}
         >
           <span style={{ fontWeight: 700, fontSize: fontSize.lg }}>G</span>
-          {isRegisterForm ? 'Sign up with Google' : 'Login with Google'}
+          Sign up with Google
         </button>
       </div>
 
-      <div style={{...styles.footer, ...getFormAnimationStyle(isRegisterForm ? 9 : 6)}}>
+      <div style={styles.footer}>
         <p style={styles.footerText}>
-          {isRegisterForm ? 'Already have an account? ' : "Don't have an account? "}
-          <button 
-            type="button"
-            style={styles.link}
-            onClick={toggleForm}
-            disabled={isAnimating}
-            onMouseEnter={(e) => {
-              e.target.style.textDecoration = 'underline';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.textDecoration = 'none';
-            }}
-          >
-            {isRegisterForm ? 'Login here' : 'Register here'}
-          </button>
+          Already have an account? <Link to="/login" style={styles.link}>Login here</Link>
         </p>
       </div>
     </div>
@@ -642,31 +513,18 @@ const RegisterPage = () => {
   return (
     <div style={styles.container}>
       <div style={styles.background}></div>
-
       <div style={styles.wrapper}>
         <div style={styles.card}>
           {/* Sliding Image */}
           <div style={styles.imageWrapper}>
             <div style={styles.imageSection}>
-              <div style={styles.imageTextWrapper}>
-              </div>
+              <div style={styles.imageTextWrapper}></div>
             </div>
           </div>
-
           {/* Forms Container */}
-          {!isMobile && (
-            <div style={styles.contentWrapper}>
-              {renderForm(false)}
-              {renderForm(true)}
-            </div>
-          )}
-
-          {/* Mobile: Single Form */}
-          {isMobile && (
-            <div style={{ padding: spacing.lg }}>
-              {renderForm(isRegister)}
-            </div>
-          )}
+          <div style={isMobile ? { padding: spacing.lg } : styles.contentWrapper}>
+            {renderForm()}
+          </div>
         </div>
       </div>
     </div>

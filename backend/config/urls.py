@@ -16,13 +16,22 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from users.views import GoogleLogin
+from users.views import (
+    GoogleLogin,
+    CustomLoginView,
+    CustomRegisterView,
+    CustomLogoutView
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    # Authentication Endpoints
-    path('api/auth/', include('dj_rest_auth.urls')), # Login, Logout, User details
-    path('api/auth/registration/', include('dj_rest_auth.registration.urls')), # Registration
-    path('api/auth/google/', GoogleLogin.as_view(), name='google_login'), # Google Auth
+    # Custom Authentication Endpoints with Logging
+    path('api/auth/login/', CustomLoginView.as_view(), name='rest_login'),
+    path('api/auth/logout/', CustomLogoutView.as_view(), name='rest_logout'),
+    path('api/auth/registration/', CustomRegisterView.as_view(), name='rest_register'),
+    path('api/auth/google/', GoogleLogin.as_view(), name='google_login'),
+    
+    # Other dj-rest-auth endpoints
+    path('api/auth/', include('dj_rest_auth.urls')),
 ]

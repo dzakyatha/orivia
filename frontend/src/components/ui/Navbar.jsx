@@ -99,12 +99,13 @@ const Navbar = ({ variant = 'main' }) => {
         {makeBtn('/home', 'Home')}
         {(() => {
           const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
-          if (role === 'Agent') return makeBtn('/agent', 'Trip');
-          return makeBtn('/customer', 'Explore');
+          if (role === 'TRAVEL_AGENT') return makeBtn('/trip/agent', 'Trip');
+          return makeBtn('/explore/customer', 'Explore');
         })()}
         <div style={{ position: 'relative' }} ref={profileRef}>
           {(() => {
-            const to = '/profile';
+            const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+            const to = role === 'TRAVEL_AGENT' ? '/profile/agent' : '/profile/customer';
             const isActive = location.pathname === to;
             const profileBtnStyle = {
               display: 'inline-flex',

@@ -42,8 +42,8 @@ const LoginPage = () => {
     setFieldErrors({});
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      const response = await axios.post(`${apiUrl}/auth/login`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+      const response = await axios.post(`${apiUrl}/auth/login/`, {
         email: formData.email,
         password: formData.password,
       });
@@ -72,48 +72,44 @@ const LoginPage = () => {
   };
 
   const handleGoogleAuth = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      console.log('Google auth success:', tokenResponse);
+    flow: 'auth-code',
+    onSuccess: async (codeResponse) => {
+      console.log('Google auth success:', codeResponse);
       setLoading(true);
       
       try {
-        const userInfoResponse = await axios.get(
-          'https://www.googleapis.com/oauth2/v3/userinfo',
-          {
-            headers: {
-              Authorization: `Bearer ${tokenResponse.access_token}`,
-            },
-          }
-        );
-
-        const userInfo = userInfoResponse.data;
-        console.log('User info:', userInfo);
-
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-        const backendResponse = await axios.post(`${apiUrl}/auth/google`, {
-          access_token: tokenResponse.access_token,
-          email: userInfo.email,
-          name: userInfo.name,
-          picture: userInfo.picture,
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+        
+        const backendResponse = await axios.post(`${apiUrl}/auth/google/`, {
+          code: codeResponse.code,
         });
 
-        const { token, role, user } = backendResponse.data;
+        const { action } = backendResponse.data;
         
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('role', role || 'Customer');
-        localStorage.setItem('user', JSON.stringify(user));
-        
-        setLoading(false);
-        navigate('/home');
+        if (action === 'login') {
+          const { access_token, user } = backendResponse.data;
+          localStorage.setItem('authToken', access_token);
+          localStorage.setItem('role', user?.role || 'CUSTOMER');
+          localStorage.setItem('user', JSON.stringify(user));
+          setFormData({ email: '', password: '' });
+          setFieldErrors({});
+          setLoading(false);
+          navigate('/home');
+        } else if (action === 'register') {
+          setLoading(false);
+          navigate('/role-selection', { state: { googleData: backendResponse.data.google_data } });
+        }
       } catch (error) {
         console.error('Google auth error:', error);
-        window.alert(error.response?.data?.message || 'Google authentication failed. Please try again.');
+        const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Google authentication failed. Please try again.';
+        window.alert(errorMsg);
         setLoading(false);
       }
     },
     onError: (error) => {
       console.error('Google login error:', error);
       window.alert('Google authentication failed. Please try again.');
+      setLoading(false);
     },
   });
 
@@ -303,6 +299,27 @@ const LoginPage = () => {
         <img src={logoPrimary} alt="ORIVIA" style={styles.logo} />
         <h2 style={styles.title}>Continue your journey</h2>
       </div>
+      
+      <br></br>
+
+
+      <div>
+        <Button
+          type="button"
+          variant="authGoogle"
+          onClick={handleGoogleAuth}
+          disabled={loading}
+        >
+          <span style={{ fontWeight: 700, fontSize: fontSize.lg }}>G</span>
+          Continue with Google
+        </Button>
+      </div>
+
+      <div style={styles.divider}>
+        <div style={styles.dividerLine}></div>
+        <span style={styles.dividerText}>or</span>
+        <div style={styles.dividerLine}></div>
+      </div>
 
       <form style={styles.form} onSubmit={handleSubmit}>
         <div style={styles.formGroup}>
@@ -367,23 +384,6 @@ const LoginPage = () => {
         </div>
       </form>
 
-      <div style={styles.divider}>
-        <div style={styles.dividerLine}></div>
-        <span style={styles.dividerText}>or</span>
-        <div style={styles.dividerLine}></div>
-      </div>
-
-      <div>
-        <Button
-          type="button"
-          variant="authGoogle"
-          onClick={handleGoogleAuth}
-          disabled={loading}
-        >
-          <span style={{ fontWeight: 700, fontSize: fontSize.lg }}>G</span>
-          Login with Google
-        </Button>
-      </div>
 
       <div style={styles.footer}>
         <p style={styles.footerText}>

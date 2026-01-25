@@ -52,18 +52,19 @@ const RegisterPage = () => {
     setFieldErrors({});
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      const response = await axios.post(`${apiUrl}/auth/register`, {
-        name: formData.name,
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+      const response = await axios.post(`${apiUrl}/auth/registration/`, {
+        full_name: formData.name,
         email: formData.email,
-        password: formData.password,
-        role: formData.role,
+        password1: formData.password,
+        password2: formData.confirmPassword,
+        role: formData.role.toUpperCase() === 'AGENT' ? 'TRAVEL_AGENT' : 'CUSTOMER',
       });
 
-      const { token, role, user } = response.data;
+      const { access_token, user } = response.data;
 
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('role', role || formData.role);
+      localStorage.setItem('authToken', access_token);
+      localStorage.setItem('role', user?.role || (formData.role.toUpperCase() === 'AGENT' ? 'TRAVEL_AGENT' : 'CUSTOMER'));
       localStorage.setItem('user', JSON.stringify(user));
 
       setLoading(false);
@@ -85,49 +86,44 @@ const RegisterPage = () => {
   };
 
   const handleGoogleAuth = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      console.log('Google auth success:', tokenResponse);
+    flow: 'auth-code',
+    onSuccess: async (codeResponse) => {
+      console.log('Google auth success:', codeResponse);
       setLoading(true);
       
       try {
-        // Get user info from Google
-        const userInfoResponse = await axios.get(
-          'https://www.googleapis.com/oauth2/v3/userinfo',
-          {
-            headers: {
-              Authorization: `Bearer ${tokenResponse.access_token}`,
-            },
-          }
-        );
-
-        const userInfo = userInfoResponse.data;
-        console.log('User info:', userInfo);
-
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-        const backendResponse = await axios.post(`${apiUrl}/auth/google`, {
-          access_token: tokenResponse.access_token,
-          email: userInfo.email,
-          name: userInfo.name,
-          picture: userInfo.picture,
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+        
+        const backendResponse = await axios.post(`${apiUrl}/auth/google/`, {
+          code: codeResponse.code,
         });
 
-        const { token, role, user } = backendResponse.data;
+        const { action } = backendResponse.data;
         
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('role', role || 'Customer');
-        localStorage.setItem('user', JSON.stringify(user));
-        
-        setLoading(false);
-        navigate('/home');
+        if (action === 'login') {
+          const { access_token, user } = backendResponse.data;
+          localStorage.setItem('authToken', access_token);
+          localStorage.setItem('role', user?.role || 'CUSTOMER');
+          localStorage.setItem('user', JSON.stringify(user));
+          setFormData({ name: '', email: '', password: '', role: 'customer', confirmPassword: '' });
+          setFieldErrors({});
+          setLoading(false);
+          navigate('/home');
+        } else if (action === 'register') {
+          setLoading(false);
+          navigate('/role-selection', { state: { googleData: backendResponse.data.google_data } });
+        }
       } catch (error) {
         console.error('Google auth error:', error);
-        window.alert(error.response?.data?.message || 'Google authentication failed. Please try again.');
+        const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Google authentication failed. Please try again.';
+        window.alert(errorMsg);
         setLoading(false);
       }
     },
     onError: (error) => {
       console.error('Google login error:', error);
       window.alert('Google authentication failed. Please try again.');
+      setLoading(false);
     },
   });
 
@@ -354,7 +350,7 @@ const RegisterPage = () => {
             required
           >
             <option value="customer">Customer</option>
-            <option value="agent">Agent</option>
+            <option value="agent">Travel Agent</option>
           </select>
         </div>
 

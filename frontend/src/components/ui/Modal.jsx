@@ -18,12 +18,12 @@ const Modal = ({ open = false, onClose = () => {}, title = '', children }) => {
   };
 
   const dialogStyle = {
-    backgroundColor: colors.accent5,
+    backgroundColor: colors.accent1,
     padding: spacing.xl,
     borderRadius: radius.lg,
     width: '90%',
     maxWidth: '600px',
-    color: 'white',
+    color: colors.accent5,
     boxSizing: 'border-box',
   };
 

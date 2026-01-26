@@ -1,6 +1,6 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faTrash, faTag, faUser } from '@fortawesome/free-solid-svg-icons';
 import {
   colors,
   spacing,
@@ -81,11 +81,12 @@ export const AuthCard = ({ children, style = {}, image, imageWrapperStyle = {}, 
 
 // Trip Management Card Components
 export const TripCard = ({ children, style = {}, ...props }) => {
+	// legacy simple card; keep for backward compatibility
 	const cardStyle = {
 		backgroundColor: '#fff',
 		borderRadius: radius.md,
 		padding: spacing.lg,
-		boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+		boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
 		...style,
 	};
 
@@ -93,6 +94,120 @@ export const TripCard = ({ children, style = {}, ...props }) => {
 		<div style={cardStyle} {...props}>
 			{children}
 		</div>
+	);
+};
+
+// Styled Trip Card used on Agent page
+export const StyledTripCard = ({ image, title, location, price, pax, children, onClick, style = {}, hover = true }) => {
+	const cardBase = {
+		position: 'relative',
+		overflow: 'hidden',
+		borderRadius: radius.lg,
+		width: '306px',
+		height: '305px',
+		boxShadow: '0 6px 18px rgba(8,15,20,0.12)',
+		transition: `transform 200ms ease, box-shadow 200ms ease`,
+		cursor: 'pointer',
+		...style,
+	};
+
+	const cardImage = {
+		position: 'absolute',
+		inset: 0,
+		backgroundSize: 'cover',
+		backgroundPosition: 'center',
+		filter: 'brightness(0.9) contrast(0.95)',
+	};
+
+	const overlay = {
+		position: 'absolute',
+		left: 0,
+		right: 0,
+		bottom: 0,
+		height: '55%',
+		background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.55) 100%)',
+	};
+
+	const content = {
+		position: 'absolute',
+		left: 16,
+		bottom: 16,
+		right: 16,
+		color: '#fff',
+		zIndex: 2,
+		display: 'grid',
+		gridTemplateRows: 'auto auto auto',
+		gap: 6,
+	};
+
+	const titleStyle = {
+		margin: 0,
+		color: '#FFF',
+		fontFamily: 'Poppins, sans-serif',
+		fontSize: 20,
+		fontStyle: 'normal',
+		fontWeight: 700,
+		lineHeight: 'normal',
+	};
+
+	const locationStyle = {
+		margin: 0,
+		color: '#F3D275',
+		fontFamily: 'Lora, serif',
+		fontSize: 13,
+		fontStyle: 'normal',
+		fontWeight: 700,
+		lineHeight: 'normal',
+	};
+
+	const metaTextStyle = {
+		color: '#FFF',
+		fontFamily: 'Lora, serif',
+		fontSize: 10,
+		fontStyle: 'normal',
+		fontWeight: 700,
+		lineHeight: 'normal',
+	};
+
+	return (
+		<article
+			onClick={onClick}
+			style={cardBase}
+			onMouseEnter={(e) => {
+				if (!hover) return;
+				e.currentTarget.style.transform = 'translateY(-6px)';
+				e.currentTarget.style.boxShadow = '0 12px 30px rgba(8,15,20,0.18)';
+			}}
+			onMouseLeave={(e) => {
+				if (!hover) return;
+				e.currentTarget.style.transform = 'none';
+				e.currentTarget.style.boxShadow = cardBase.boxShadow;
+			}}
+		>
+			<div style={{ ...cardImage, backgroundImage: image ? `url(${image})` : 'none' }} />
+			<div style={overlay} />
+			<div style={content}>
+				{/* If structured props provided render them, otherwise render children for backward compatibility */}
+				{title || location || price || pax ? (
+					<>
+						<h3 style={titleStyle}>{title}</h3>
+						<p style={locationStyle}>{location}</p>
+						<div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+							<span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', background: 'transpaarent', padding: '6px 10px', borderRadius: 6 }}>
+								<FontAwesomeIcon icon={faTag} />
+								<span style={metaTextStyle}>{price}</span>
+							</span>
+							<span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', background: 'transpaarent', padding: '6px 10px', borderRadius: 6 }}>
+								<FontAwesomeIcon icon={faUser} />
+								<span style={metaTextStyle}>{pax}</span>
+							</span>
+						</div>
+					</>
+				) : (
+					children
+				)}
+			</div>
+		</article>
 	);
 };
 

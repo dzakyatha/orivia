@@ -10,6 +10,7 @@ import CustomerPage from './pages/home/CustomerPage.jsx';
 import AgentProfilePage from './pages/profile/AgentProfilePage.jsx';
 import CustomerProfilePage from './pages/profile/CustomerProfilePage.jsx';
 import AgentTripPage from './pages/trip/AgentPage.jsx';
+import NewTripPage from './pages/trip/NewTripPage.jsx';
 import CustomerExplorePage from './pages/explore/CustomerPage.jsx';
 
 const App = () => {
@@ -26,6 +27,7 @@ const App = () => {
         <Route path="/profile/agent" element={<AgentProfilePage />} />
         <Route path="/profile/customer" element={<CustomerProfilePage />} />
         <Route path="/trip/agent" element={<AgentTripPage />} />
+        <Route path="/trip/new" element={<NewTripPage />} />
         <Route path="/explore/customer" element={<CustomerExplorePage />} />
       </Routes>
     </Router>

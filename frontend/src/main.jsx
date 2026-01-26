@@ -84,22 +84,16 @@ const globalStyles = `
     outline: none;
   }
 
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  /* Firefox */
+  html, body {
+    scrollbar-width: none;
+    -ms-overflow-style: none; /* IE 10+ */
   }
 
-  ::-webkit-scrollbar-track {
-    background: #f1f1f1;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: #3E5626;
-    border-radius: 4px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: #AB2A02;
+  /* WebKit (Chrome, Safari, Opera) */
+  html::-webkit-scrollbar, body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
   }
 
   ::selection {

@@ -1,10 +1,13 @@
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTrash } from '@fortawesome/free-solid-svg-icons';
 import {
   colors,
   spacing,
   radius,
   fontFamily,
   shadows,
+  fontSize,
 } from '../../styles/variables.jsx';
 
 const Card = ({ children, style = {}, ...props }) => {
@@ -74,6 +77,240 @@ export const AuthCard = ({ children, style = {}, image, imageWrapperStyle = {}, 
       {children}
     </div>
   );
+};
+
+// Trip Management Card Components
+export const TripCard = ({ children, style = {}, ...props }) => {
+	const cardStyle = {
+		backgroundColor: '#fff',
+		borderRadius: radius.md,
+		padding: spacing.lg,
+		boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+		...style,
+	};
+
+	return (
+		<div style={cardStyle} {...props}>
+			{children}
+		</div>
+	);
+};
+
+// Image Upload Card
+export const ImageUploadCard = ({ onUpload, children, style = {} }) => {
+	const uploadStyle = {
+		backgroundColor: '#fff',
+		borderRadius: radius.md,
+		padding: spacing.lg,
+		boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+		border: '3px dashed #D4C5B0',
+		minHeight: '500px',
+		display: 'flex',
+		flexDirection: 'column',
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: spacing.md,
+		cursor: 'pointer',
+		transition: 'border-color 0.2s',
+		...style,
+	};
+
+	return (
+		<div style={uploadStyle} onClick={onUpload}>
+			{children}
+		</div>
+	);
+};
+
+// Input Field Component
+export const InputField = ({ label, type = 'text', style = {}, ...props }) => {
+	const labelStyle = {
+		display: 'block',
+		fontSize: fontSize.sm,
+		fontWeight: 600,
+		marginBottom: '6px',
+		color: '#333',
+	};
+
+	const inputStyle = {
+		width: '100%',
+		padding: '10px 14px',
+		borderRadius: radius.sm,
+		border: '1px solid #D4C5B0',
+		fontSize: fontSize.base,
+		fontFamily: 'inherit',
+		backgroundColor: '#FEFDFB',
+		boxSizing: 'border-box',
+		outline: 'none',
+		...style,
+	};
+
+	return (
+		<div>
+			{label && <label style={labelStyle}>{label}</label>}
+			{type === 'textarea' ? (
+				<textarea style={inputStyle} {...props} />
+			) : (
+				<input type={type} style={inputStyle} {...props} />
+			)}
+		</div>
+	);
+};
+
+// Icon Button Component
+export const IconButton = ({ icon, onClick, style = {} }) => {
+	const buttonStyle = {
+		background: 'none',
+		border: 'none',
+		cursor: 'pointer',
+		padding: '4px 8px',
+		color: '#8B7355',
+		fontSize: fontSize.sm,
+		...style,
+	};
+
+	return (
+		<button style={buttonStyle} onClick={onClick}>
+			{icon}
+		</button>
+	);
+};
+
+// Add Button (Plus button)
+export const AddButton = ({ onClick, style = {}, children = '+' }) => {
+	const buttonStyle = {
+		width: 40,
+		height: 40,
+		borderRadius: radius.md,
+		border: '2px solid ' + colors.accent5,
+		backgroundColor: '#fff',
+		color: colors.accent5,
+		fontSize: '18px',
+		cursor: 'pointer',
+		flexShrink: 0,
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		...style,
+	};
+
+	return (
+		<button style={buttonStyle} onClick={onClick}>
+			{children}
+		</button>
+	);
+};
+
+// Upload Button Component
+export const UploadButton = ({ onClick, children, style = {} }) => {
+	const buttonStyle = {
+		padding: '10px 24px',
+		borderRadius: radius.md,
+		backgroundColor: colors.accent5,
+		color: '#fff',
+		border: 'none',
+		fontWeight: 600,
+		cursor: 'pointer',
+		fontSize: fontSize.base,
+		...style,
+	};
+
+	return (
+		<button style={buttonStyle} onClick={onClick}>
+			{children}
+		</button>
+	);
+};
+
+// Card Header Component
+export const CardHeader = ({ children, style = {} }) => {
+	const headerStyle = {
+    color: colors.accent5,
+		margin: 0,
+		marginBottom: spacing.md,
+		fontSize: fontSize.lg,
+		fontWeight: 1000,
+		...style,
+	};
+
+	return <h3 style={headerStyle}>{children}</h3>;
+};
+
+// Section Title Component
+export const SectionTitle = ({ children, style = {} }) => {
+	const titleStyle = {
+		margin: 0,
+		marginBottom: spacing.lg,
+		fontSize: fontSize.xl,
+		fontWeight: 600,
+		...style,
+	};
+
+	return <h2 style={titleStyle}>{children}</h2>;
+};
+
+// Image Preview Grid Item
+export const ImagePreview = ({ onDelete, showDelete = false, children, style = {} }) => {
+	const previewStyle = {
+		aspectRatio: '1/1',
+		borderRadius: radius.sm,
+		backgroundColor: '#F8F4EF',
+		border: '1px solid #E5DDD0',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		position: 'relative',
+		overflow: 'hidden',
+		...style,
+	};
+
+	const deleteButtonStyle = {
+		position: 'absolute',
+		top: 6,
+		right: 6,
+		background: 'rgba(255,255,255,0.95)',
+		border: 'none',
+		borderRadius: '50%',
+		width: 32,
+		height: 32,
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		cursor: 'pointer',
+		boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+	};
+
+	return (
+		<div style={previewStyle}>
+			{children}
+			{showDelete && onDelete && (
+				<button style={deleteButtonStyle} onClick={onDelete}>
+					<FontAwesomeIcon icon={faTrash} color="#ef4444" />
+				</button>
+			)}
+		</div>
+	);
+};
+
+// Text Link Component (for "+ Others")
+export const TextLink = ({ children, onClick, style = {} }) => {
+	const linkStyle = {
+		marginTop: spacing.sm,
+		background: 'none',
+		border: 'none',
+		color: colors.accent5,
+		fontSize: fontSize.sm,
+		fontWeight: 600,
+		cursor: 'pointer',
+		padding: '4px 0',
+		...style,
+	};
+
+	return (
+		<button style={linkStyle} onClick={onClick}>
+			{children}
+		</button>
+	);
 };
 
 export default Card;

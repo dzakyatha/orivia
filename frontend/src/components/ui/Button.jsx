@@ -65,11 +65,11 @@ const variants = {
 
   primary: {
     ...baseStyle,
-    display: 'flex',
-    width: '412px',
-    height: '49px',
+    display: 'inline-flex',
+    width: 'auto',
+    height: 'auto',
     padding: '10px 20px',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     borderRadius: '10px',
     border: '1px solid rgba(255, 255, 255, 0.2)',
@@ -78,7 +78,8 @@ const variants = {
       ${colors.accent5} 28.08%,
       ${colors.accent4} 97.67%
     )`,
-    fontSize: fontSize.base,
+    fontSize: fontSize.sm,
+    boxSizing: 'border-box',
   },
 
   btn1: {

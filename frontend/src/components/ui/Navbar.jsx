@@ -5,7 +5,7 @@ import logoPrimary from '../../assets/logo/logoPrimary.png';
 
 
 
-const Navbar = ({ variant = 'main' }) => {
+const Navbar = ({ variant = 'main', style = {} }) => {
   const location = useLocation();
 
   const navStyle = {
@@ -16,6 +16,8 @@ const Navbar = ({ variant = 'main' }) => {
     padding: `${spacing.md} ${spacing.lg}`,
     boxSizing: 'border-box',
     fontFamily: fontFamily.base,
+    backgroundColor: 'transparent',
+    ...style,
   };
 
   const leftStyle = { display: 'flex', alignItems: 'center', gap: spacing.md };
@@ -193,3 +195,30 @@ const Navbar = ({ variant = 'main' }) => {
 };
 
 export default Navbar;
+export const TripTabs = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const styles = {
+    row: { display: 'flex', gap: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 20, paddingTop: 8, paddingBottom: 8 },
+    tabButton: { background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px 12px', fontSize: 16, fontWeight: 700, color: colors?.dark || '#10323a' },
+    tabActiveBar: { height: 4, width: 48, borderRadius: 4, background: colors?.accent5 || '#3b5b2a', marginTop: 6 },
+  };
+
+  const isEdit = location.pathname === '/trip/edit';
+  const isParticipant = location.pathname === '/trip/participant';
+
+  return (
+    <div style={styles.row}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <button style={styles.tabButton} onClick={() => navigate('/trip/edit')}>Edit</button>
+        {isEdit && <div style={styles.tabActiveBar} />}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <button style={styles.tabButton} onClick={() => navigate('/trip/participant')}>Participant</button>
+        {isParticipant && <div style={styles.tabActiveBar} />}
+      </div>
+    </div>
+  );
+};

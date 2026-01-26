@@ -20,6 +20,14 @@ import {
 } from '../../components/ui/Card';
 import { colors, spacing, radius, fontSize } from '../../styles/variables';
 
+const DEST_OPTIONS = [
+	'Island Exploration',
+	'Mount Hiking',
+	'Camping Ground',
+	'City Tour',
+	'Wildlife Exploration'
+];
+
 const NewTripPage = () => {
 	const navigate = useNavigate();
 	const [schedules, setSchedules] = useState([
@@ -89,6 +97,8 @@ const NewTripPage = () => {
 	};
 
 	const [tripDays, setTripDays] = useState(1);
+	const [destType, setDestType] = useState('');
+	const [destTypeCustom, setDestTypeCustom] = useState('');
 
 	const [tripPlanner, setTripPlanner] = useState({
 		1: [
@@ -380,7 +390,7 @@ const NewTripPage = () => {
 
 	return (
 		<>
-			<Navbar />
+			<Navbar style={{ background: 'transparent' }} />
 			<div style={pageStyle}>
 				<div style={containerStyle}>
 					<div style={gridStyle}>
@@ -505,7 +515,23 @@ const NewTripPage = () => {
 											<InputField placeholder="Night" type="number" />
 										</div>
 									</div>
-									<InputField label="Destination Type" type="text" />
+									<div>
+										<label style={{ display: 'block', marginBottom: '6px', fontSize: fontSize.sm, color: '#333', fontWeight: 600 }}>
+											Destination Type
+										</label>
+										<select value={destType} onChange={(e) => setDestType(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: radius.sm, border: '1px solid #D4C5B0', fontSize: fontSize.base, fontFamily: 'inherit', backgroundColor: '#FEFDFB', boxSizing: 'border-box', outline: 'none' }}>
+											<option value="">Select Type</option>
+											{DEST_OPTIONS.map(opt => (
+												<option key={opt} value={opt}>{opt}</option>
+											))}
+											<option value="Other">Other</option>
+										</select>
+										{destType === 'Other' && (
+											<div style={{ marginTop: spacing.sm }}>
+												<InputField label="Custom Destination Type" type="text" value={destTypeCustom} onChange={(e) => setDestTypeCustom(e.target.value)} />
+											</div>
+										)}
+									</div>
 								</div>
 
 								<div style={{ marginBottom: spacing.md }}>

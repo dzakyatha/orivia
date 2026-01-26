@@ -26,4 +26,7 @@ urlpatterns = [
     path('api/auth/registration/', include('dj_rest_auth.registration.urls')), # Registration
     path('api/auth/google/', GoogleAuth.as_view(), name='google_auth'), # Google Auth Step 1
     path('api/auth/google/complete/', GoogleRegisterComplete.as_view(), name='google_complete'), # Google Auth Step 2 (bc ada choose role)
+
+    # Gateway Endpoint for Microservices
+    path('api/', include('gateway.urls')),
 ]

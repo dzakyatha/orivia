@@ -80,6 +80,7 @@ INSTALLED_APPS = [
 
     # Local apps
     'users',
+    'gateway',
 ]
 
 # Site ID for django-allauth
@@ -285,3 +286,6 @@ if LOGGING_ENABLED:
     }
     LOGGING['loggers']['users']['handlers'].append('file')
     LOGGING['loggers']['django.security']['handlers'].append('file')
+
+# Microservices URL
+TRAVEL_PLANNER_URL = config('TRAVEL_PLANNER_URL', default='http://localhost:8001') # localhost for development

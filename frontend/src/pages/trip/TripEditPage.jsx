@@ -481,6 +481,10 @@ export default function TripEditPage() {
     fontFamily: 'Inter, system-ui, -apple-system',
   };
 
+  const scheduleCardTotalMin = '230px';
+  const scheduleFixedBottomApprox = '0px';
+  const scheduleListMaxHeight = `calc(${scheduleCardTotalMin} - ${scheduleFixedBottomApprox})`;
+
   const containerStyle = {
     maxWidth: '1400px',
     margin: '0 auto',
@@ -580,38 +584,53 @@ export default function TripEditPage() {
             {/* Schedule Section */}
             <TripCard>
               <CardHeader>Schedule</CardHeader>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, maxHeight: '140px', overflowY: 'auto', paddingRight: spacing.sm }}>
-                {schedules.map((schedule) => (
-                  <div
-                    key={schedule.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '8px 0',
-                    }}
-                  >
-                    <span style={{ fontSize: fontSize.base }}>{formatDateRange(schedule.text)}</span>
-                    <div style={{ display: 'flex', gap: spacing.xs }}>
-                      <IconButton icon={<FontAwesomeIcon icon={faPencil} />} onClick={() => handleEditSchedule(schedule)} />
-                      <IconButton icon={<FontAwesomeIcon icon={faTrash} />} onClick={() => handleDeleteSchedule(schedule.id)} />
+              <div style={{ display: 'flex', flexDirection: 'column', minHeight: scheduleCardTotalMin, maxHeight: scheduleCardTotalMin }}>
+                <div style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: spacing.sm,
+                  overflowY: schedules.length >= 2 ? 'auto' : 'hidden',
+                  maxHeight: schedules.length >= 2 ? scheduleListMaxHeight : 'none',
+                  paddingRight: spacing.sm
+                }}>
+                  {schedules.map((schedule) => (
+                    <div
+                      key={schedule.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '8px 0',
+                      }}
+                    >
+                      <span style={{ fontSize: fontSize.base }}>{formatDateRange(schedule.text)}</span>
+                      <div style={{ display: 'flex', gap: spacing.xs }}>
+                        <IconButton icon={<FontAwesomeIcon icon={faPencil} />} onClick={() => handleEditSchedule(schedule)} />
+                        <IconButton icon={<FontAwesomeIcon icon={faTrash} />} onClick={() => handleDeleteSchedule(schedule.id)} />
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: spacing.md }}>
-                <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'end' }}>
-                  <div style={{ flex: 1 }}>
-                    <InputField label="Start Date" type="date" value={newScheduleStartDate} onChange={(e) => { setNewScheduleStartDate(e.target.value); setScheduleError(''); }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <InputField label="End Date" type="date" value={newScheduleEndDate} onChange={(e) => { setNewScheduleEndDate(e.target.value); setScheduleError(''); }} />
-                  </div>
-                  <AddButton onClick={handleAddSchedule} />
+                  ))}
                 </div>
-                {scheduleError && (
-                  <div style={{ color: colors.error, marginTop: spacing.sm, fontSize: fontSize.sm }}>{scheduleError}</div>
-                )}
+
+                {/* Add Schedule (fixed area) */}
+                <div style={{ padding: spacing.md, borderTop: `1px solid ${colors.accent5}20`, backgroundColor: colors.bg }}>
+                  <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'end' }}>
+                    <div style={{ flex: 1 }}>
+                      <InputField label="Start Date" type="date" value={newScheduleStartDate} onChange={(e) => { setNewScheduleStartDate(e.target.value); setScheduleError(''); }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <InputField label="End Date" type="date" value={newScheduleEndDate} onChange={(e) => { setNewScheduleEndDate(e.target.value); setScheduleError(''); }} />
+                    </div>
+                    <AddButton onClick={handleAddSchedule} />
+                  </div>
+                  <div style={{ height: spacing.sm }} />
+                  <div style={{ minHeight: fontSize.sm, lineHeight: 1, color: colors.error }}>
+                    {scheduleError && (
+                      <div style={{ color: colors.error, fontSize: fontSize.sm }}>{scheduleError}</div>
+                    )}
+                  </div>
+                </div>
               </div>
             </TripCard>
             

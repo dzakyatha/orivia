@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faCircleUser, faDownload } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faCircleUser, faDownload, faCheck, faXmark, faEdit } from '@fortawesome/free-solid-svg-icons';
 import { spacing, fontFamily, colors, radius, fontSize } from '../../styles/variables.jsx';
 import Navbar, { TripTabs } from '../../components/ui/Navbar.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -9,15 +9,18 @@ import extendAgentBg from '../../assets/images/extendagentbg.jpg';
 
 
 export default function ParticipantPage() {
-  const passengerSample = Array.from({ length: 13 }).map((_, i) => ({
-    username: `jekiiiii23${i}`,
-    fullname: 'siapa siapa siapa siapa',
-    gender: i % 2 === 0 ? 'Male' : 'Female',
-    dob: '10 Jun 2000',
-    nationality: 'Indonesia',
-    pickup: i % 3 === 0 ? 'Orivia Agent Gambir, Jakarta' : i % 3 === 1 ? 'Orivia Agent Pasteur, Bandung' : 'Soekarno Hatta Airport, Jakarta',
-    phone: '08123456789'
-  }));
+  const passengerSample = Array.from({ length: 13 }).map((_, i) => {
+    const gender = i % 2 === 0 ? 'Male' : 'Female';
+    return {
+      username: gender === 'Female' ? 'nakeiiiiii23' : `jekiiiii23${i}`,
+      fullname: 'siapa siapa siapa siapa',
+      gender,
+      dob: '07 Mar 2005',
+      nationality: 'Indonesia',
+      pickup: i % 3 === 0 ? 'Orivia Agent Gambir, Jakarta' : i % 3 === 1 ? 'Orivia Agent Pasteur, Bandung' : 'Soekarno Hatta Airport, Jakarta',
+      phone: '08123456789'
+    };
+  });
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPassenger, setSelectedPassenger] = useState(null);
@@ -159,53 +162,64 @@ export default function ParticipantPage() {
           </div>
         </div>
         
-        <Modal open={modalOpen} onClose={closePassengerModal} title={selectedPassenger ? 'Booking Details' : ''}>
+        <Modal open={modalOpen} onClose={closePassengerModal} title={''}>
           {selectedPassenger && (
-            <div style={{ color: colors.accent5 }}>
-              <div style={{ marginBottom: spacing.md }}>
-                <div style={{ fontSize: fontSize.sm, opacity: 0.9 }}>Username</div>
-                <div style={{ fontWeight: 700, marginBottom: spacing.xs }}>@{selectedPassenger.username}</div>
+            <>
+              <div style={{ backgroundColor: '#ffffff', borderRadius: radius.md, padding: spacing.md, boxShadow: '0 6px 18px rgba(8,15,20,0.06)', color: colors.accent5 }}>
+                  <div style={{ fontSize: fontSize.xl, fontWeight: 700, marginBottom: spacing.sm, color: colors.accent5 }}>Booking Details</div>
+                  <div style={{ marginBottom: spacing.md }}>
+                    <div style={{ fontSize: fontSize.sm, opacity: 0.9 }}>Username</div>
+                    <div style={{ fontWeight: 700, marginBottom: spacing.xs }}>@{selectedPassenger.username}</div>
+                  </div>
+                
+                <div style={{ marginBottom: spacing.md }}>
+                  <div style={{ display: 'flex', gap: spacing.lg, flexWrap: 'nowrap', overflowX: 'auto' }}>
+                    <div style={{ flex: '2 1 0', minWidth: 0 }}>
+                      <div style={{ fontSize: fontSize.sm, opacity: 0.9 }}>Name</div>
+                      <div style={{ fontWeight: 600 }}>{selectedPassenger.fullname}</div>
+                    </div>
+                    <div style={{ flex: '1 1 0', minWidth: 0 }}>
+                      <div style={{ fontSize: fontSize.sm, opacity: 0.9 }}>Phone Number</div>
+                      <div style={{ fontWeight: 600 }}>{selectedPassenger.phone}</div>
+                    </div>
+                    <div style={{ flex: '0.6 1 0', minWidth: 0 }}>
+                      <div style={{ fontSize: fontSize.sm, opacity: 0.9 }}>Gender</div>
+                      <div style={{ fontWeight: 600 }}>{selectedPassenger.gender}</div>
+                    </div>
+                    <div style={{ flex: '1 1 0', minWidth: 0 }}>
+                      <div style={{ fontSize: fontSize.sm, opacity: 0.9 }}>Date of Birth</div>
+                      <div style={{ fontWeight: 600 }}>{selectedPassenger.dob}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: spacing.md }}>
+                  <div style={{ fontSize: fontSize.sm, opacity: 0.9, marginBottom: spacing.xs }}>Notes</div>
+                  <div style={{ borderRadius: radius.sm, color: colors.accent5, fontWeight: 600 }}>
+                    I prefer a window seat during transportation if available, prefer a lower bunk for sleeping arrangements, and have food allergies to peanuts and shrimp.
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: spacing.md }}>
+                  <div style={{ fontSize: fontSize.sm, opacity: 0.9 }}>Pick Up Point</div>
+                  <div style={{ fontWeight: 600 }}>{selectedPassenger.pickup}</div>
+                </div>
               </div>
               
-              <div style={{ marginBottom: spacing.md }}>
-                <div style={{ display: 'flex', gap: spacing.lg, flexWrap: 'nowrap', overflowX: 'auto' }}>
-                  <div style={{ flex: '2 1 0', minWidth: 0 }}>
-                    <div style={{ fontSize: fontSize.sm, opacity: 0.9 }}>Name</div>
-                    <div style={{ fontWeight: 600 }}>{selectedPassenger.fullname}</div>
-                  </div>
-                  <div style={{ flex: '1 1 0', minWidth: 0 }}>
-                    <div style={{ fontSize: fontSize.sm, opacity: 0.9 }}>Phone Number</div>
-                    <div style={{ fontWeight: 600 }}>{selectedPassenger.phone}</div>
-                  </div>
-                  <div style={{ flex: '0.6 1 0', minWidth: 0 }}>
-                    <div style={{ fontSize: fontSize.sm, opacity: 0.9 }}>Gender</div>
-                    <div style={{ fontWeight: 600 }}>{selectedPassenger.gender}</div>
-                  </div>
-                  <div style={{ flex: '1 1 0', minWidth: 0 }}>
-                    <div style={{ fontSize: fontSize.sm, opacity: 0.9 }}>Date of Birth</div>
-                    <div style={{ fontWeight: 600 }}>{selectedPassenger.dob}</div>
-                  </div>
+              <div style={{padding: spacing.md, paddingLeft: spacing.sm, marginTop: spacing.sm, display: 'flex', justifyContent: 'flex-start', gap: spacing.sm }}>
+                <div style={{ display: 'flex', gap: spacing.sm }}>
+                  <Button variant="btn1" style={{ display: 'inline-flex', gap: spacing.xs }}>
+                    <FontAwesomeIcon icon={faEdit} /> Edit
+                  </Button>
+                  <Button variant="btn2" style={{ display: 'inline-flex', gap: spacing.xs }}>
+                    <FontAwesomeIcon icon={faCheck} /> Confirm
+                  </Button>
+                  <Button variant="btn3" onClick={closePassengerModal} style={{ display: 'inline-flex', gap: spacing.xs }}>
+                    <FontAwesomeIcon icon={faXmark} /> Cancel
+                  </Button>
                 </div>
               </div>
-
-              <div style={{ marginBottom: spacing.md }}>
-                <div style={{ fontSize: fontSize.sm, opacity: 0.9, marginBottom: spacing.xs }}>Notes</div>
-                <div style={{ background: colors.accent1, borderRadius: radius.sm, color: colors.accent5 }}>
-                  I prefer a window seat during transportation if available, prefer a lower bunk for sleeping arrangements, and have food allergies to peanuts and shrimp.
-                </div>
-              </div>
-
-              <div style={{ marginBottom: spacing.lg }}>
-                <div style={{ fontSize: fontSize.sm, opacity: 0.9 }}>Pick Up Point</div>
-                <div style={{ fontWeight: 600 }}>{selectedPassenger.pickup}</div>
-              </div>
-
-              <div style={{ display: 'flex', gap: spacing.sm }}>
-                <Button variant="btn1">Edit</Button>
-                <Button variant="btn2">Confirm</Button>
-                <Button variant="btn3" onClick={closePassengerModal}>Cancel</Button>
-              </div>
-            </div>
+            </>
           )}
         </Modal>
         {/* Side-by-side layout: left summary (fixed width) and right passenger list (fills remaining width) */}

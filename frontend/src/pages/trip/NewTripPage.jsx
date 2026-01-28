@@ -483,7 +483,7 @@ const NewTripPage = () => {
 							</div>
 
 							{/* Schedule Section */}
-							<TripCard>
+							<TripCard style={{ backgroundColor: 'rgb(255, 255, 255)', borderRadius: '12px', padding: '24px', boxShadow: 'rgba(0, 0, 0, 0.5) 0px 1px 3px', height: '100%' }}>
 								<CardHeader>Schedule</CardHeader>
 								<div style={{ display: 'flex', flexDirection: 'column', height: '270px' }}>
 									<div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: spacing.sm, overflowY: 'auto', paddingRight: spacing.sm }}>

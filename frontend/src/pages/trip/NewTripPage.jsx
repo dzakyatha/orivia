@@ -404,7 +404,7 @@ const NewTripPage = () => {
 		minHeight: '100vh',
 		fontFamily: fontFamily?.base || 'Inter, system-ui, -apple-system',
 		backgroundColor: colors.accent1,
-		backgroundImage: `url(${extendAgentBg})`,
+		backgroundImage: 'url(https://images.unsplash.com/photo-1615729947596-a598e5de0ab3?q=80&w=1600&auto=format&fit=crop)',
 		backgroundSize: 'cover',
 		backgroundPosition: 'center top',
 		backgroundRepeat: 'no-repeat',

@@ -87,7 +87,9 @@ export const TripCard = ({ children, style = {}, ...props }) => {
 		backgroundColor: '#fff',
 		borderRadius: radius.md,
 		padding: spacing.lg,
-		boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
+		boxShadow: 'none',
+		border: '2px solid #00000043',
+		transition: 'border-color 180ms ease, transform 200ms ease',
 		...style,
 	};
 

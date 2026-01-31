@@ -91,17 +91,17 @@ export const globalStyles = `
 		outline: none;
 	}
 
-	/* Allow native scrollbars by default; custom areas use .custom-scrollbar */
+	/* Hide page-level scrollbars but keep custom-scrollbar/.cards-scroll visible */
 	/* Firefox */
-	html, body {
-		scrollbar-width: auto;
-		-ms-overflow-style: auto; /* IE 10+ */
+	html, body, #root {
+		scrollbar-width: none; /* hide page scrollbar in Firefox */
+		-ms-overflow-style: none; /* IE 10+ */
 	}
 
-	/* WebKit (Chrome, Safari, Opera) */
-	html::-webkit-scrollbar, body::-webkit-scrollbar {
-		width: auto;
-		height: auto;
+	/* WebKit (Chrome, Safari, Opera) - hide page scrollbar */
+	html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar {
+		width: 0;
+		height: 0;
 	}
 
 	::selection {

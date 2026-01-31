@@ -18,6 +18,8 @@ class GatewayProxyView(APIView):
         
         if service_name == 'planner':
             base_url = settings.TRAVEL_PLANNER_URL
+        elif service_name == 'opentrip':
+            base_url = settings.OPEN_TRIP_URL
         else:
             return HttpResponse("Service not found", status=404)
 

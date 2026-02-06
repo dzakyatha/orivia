@@ -3,9 +3,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { spacing, fontFamily, colors, radius, fontSize } from '../../styles/variables.jsx';
 import logoPrimary from '../../assets/logo/logoPrimary.png';
 
+// Using explicit rgba strings instead of a helper
 
 
-const Navbar = ({ variant = 'main' }) => {
+
+const Navbar = ({ variant = 'main', style = {} }) => {
   const location = useLocation();
 
   const navStyle = {
@@ -16,6 +18,8 @@ const Navbar = ({ variant = 'main' }) => {
     padding: `${spacing.md} ${spacing.lg}`,
     boxSizing: 'border-box',
     fontFamily: fontFamily.base,
+    backgroundColor: 'transparent',
+    ...style,
   };
 
   const leftStyle = { display: 'flex', alignItems: 'center', gap: spacing.md };
@@ -193,3 +197,33 @@ const Navbar = ({ variant = 'main' }) => {
 };
 
 export default Navbar;
+export const TripTabs = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isEdit = location.pathname === '/trip/edit';
+  const isParticipant = location.pathname === '/trip/participant';
+
+  const tabBtn = (label, path, active) => ({
+    onClick: () => navigate(path),
+    style: {
+      cursor: 'pointer',
+      background: 'transparent',
+      fontWeight: active ? 800 : 700,
+      fontSize: fontSize.base,
+      minWidth: 100,
+      textAlign: 'center',
+      borderBottom: active ? `3px solid ${colors.bg}` : '3px solid rgba(255, 255, 255, 0.22)',
+      color: colors.bg,
+      paddingBottom: 8
+    }
+  });
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0' }}>
+      <div style={{ background: 'transparent', padding: '15px 15px', borderRadius: radius.sm, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button {...tabBtn('Edit', '/trip/edit', isEdit)}>{'Edit'}</button>
+        <button {...tabBtn('Participant', '/trip/participant', isParticipant)}>{'Participant'}</button>
+      </div>
+    </div>
+  );
+};

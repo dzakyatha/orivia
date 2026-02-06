@@ -66,3 +66,7 @@ export const transitions = {
 export const fontFamily = {
   base: "'Poppins', 'Lora', sans-serif",
 };
+
+export const fontFamilySerif = {
+  serif: "'Lora', serif",
+};

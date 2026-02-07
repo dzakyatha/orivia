@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { spacing, fontFamily, colors, radius, fontSize } from '../../styles/variables.jsx';
 import logoPrimary from '../../assets/logo/logoPrimary.png';
 
+// Using explicit rgba strings instead of a helper
+
 
 
 const Navbar = ({ variant = 'main', style = {} }) => {
@@ -198,26 +200,29 @@ export default Navbar;
 export const TripTabs = () => {
   const location = useLocation();
   const navigate = useNavigate();
-
-  const styles = {
-    row: { display: 'flex', gap: 24, alignItems: 'center', justifyContent: 'center'},
-    tabButton: { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 16, fontWeight: 700 },
-    tabActiveBar: { height: 4, width: 48, borderRadius: 4, background: colors.accent5, marginTop: 6 },
-  };
-
   const isEdit = location.pathname === '/trip/edit';
   const isParticipant = location.pathname === '/trip/participant';
 
-  return (
-    <div style={styles.row}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <button style={{ ...styles.tabButton, color: isEdit ? colors.accent5 : colors.accent3 }} onClick={() => navigate('/trip/edit')}>Edit</button>
-        {isEdit && <div style={styles.tabActiveBar} />}
-      </div>
+  const tabBtn = (label, path, active) => ({
+    onClick: () => navigate(path),
+    style: {
+      cursor: 'pointer',
+      background: 'transparent',
+      fontWeight: active ? 800 : 700,
+      fontSize: fontSize.base,
+      minWidth: 100,
+      textAlign: 'center',
+      borderBottom: active ? `3px solid ${colors.bg}` : '3px solid rgba(255, 255, 255, 0.22)',
+      color: colors.bg,
+      paddingBottom: 8
+    }
+  });
 
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <button style={{ ...styles.tabButton, color: isParticipant ? colors.accent5 : colors.accent3 }} onClick={() => navigate('/trip/participant')}>Participant</button>
-        {isParticipant && <div style={styles.tabActiveBar} />}
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0' }}>
+      <div style={{ background: 'transparent', padding: '15px 15px', borderRadius: radius.sm, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button {...tabBtn('Edit', '/trip/edit', isEdit)}>{'Edit'}</button>
+        <button {...tabBtn('Participant', '/trip/participant', isParticipant)}>{'Participant'}</button>
       </div>
     </div>
   );

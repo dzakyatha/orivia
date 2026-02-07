@@ -289,3 +289,4 @@ if LOGGING_ENABLED:
 
 # Microservices URL
 TRAVEL_PLANNER_URL = config('TRAVEL_PLANNER_URL', default='http://localhost:8001') # localhost for development
+OPEN_TRIP_URL = config('OPEN_TRIP_URL', default='http://localhost:8002')

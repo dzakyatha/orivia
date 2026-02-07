@@ -7,21 +7,10 @@ import Modal, { modalStyles } from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
 import extendAgentBg from '../../assets/images/extendagentbg.jpg';
 import { colors, spacing, radius, fontSize, fontFamily } from '../../styles/variables';
+import { TripCard, ImageUploadCard, InputField, IconButton, AddButton, UploadButton, CardHeader, SectionTitle, ImagePreview, TextLink } from '../../components/ui/Card';
+import { trips, tripSchedules, DESTINATION_TYPES } from '../../mocks/mockData';
 
-import { 
-  TripCard, 
-  ImageUploadCard, 
-  InputField, 
-  IconButton, 
-  AddButton, 
-  UploadButton, 
-  CardHeader, 
-  SectionTitle, 
-  ImagePreview, 
-  TextLink 
-} from '../../components/ui/Card';
-
-const DEST_OPTIONS = [
+const DEST_OPTIONS = DESTINATION_TYPES || [
   'Island Exploration',
   'Mount Hiking',
   'Camping Ground',
@@ -32,90 +21,102 @@ const DEST_OPTIONS = [
 export default function TripEditPage() {
   const navigate = useNavigate();
   const location = useLocation();
-
   const isEdit = location.pathname === '/trip/edit';
   const isParticipant = location.pathname === '/trip/participant';
-
-  // Mock data for editing - in real app, this would come from API/props
-  const [tripName, setTripName] = useState('Labuan Bajo');
-  const [tripPrice, setTripPrice] = useState('1.450.000');
-  const [tripProvince, setTripProvince] = useState('East Nusa Tenggara, Indonesia');
-  const [tripCountry, setTripCountry] = useState('Indonesia');
-  const [tripSlot, setTripSlot] = useState('8');
-  const [tripDay, setTripDay] = useState('3');
-  const [tripNight, setTripNight] = useState('2');
-  const [tripDestType, setTripDestType] = useState('Island Exploration');
-  const [tripDescription, setTripDescription] = useState('Labuan Bajo, located at the eastern end of Rinca Flores, Manggarai, is famous for its stunning beauty and unique wildlife. The island is also home to the prehistoric Komodo dragons and monitor lizards. You can enjoy attractions for the local heritage and cultural aspects of the surrounding area.');
-
-  // Pre-filled images for edit mode
-  const [imagePreviews, setImagePreviews] = useState([
-    'https://via.placeholder.com/500x300/8B7355/FFFFFF?text=Labuan+Bajo+1',
-    'https://via.placeholder.com/100x100/8B7355/FFFFFF?text=Image+2',
-    'https://via.placeholder.com/100x100/8B7355/FFFFFF?text=Image+3',
-    'https://via.placeholder.com/100x100/8B7355/FFFFFF?text=Image+4'
-  ]);
-  const fileInputRef = useRef(null);
-  const MAX_IMAGES = 4;
-
-  const [schedules, setSchedules] = useState([
-    { id: 1, text: '2026-02-01 - 2026-02-02' },
-    { id: 2, text: '2026-02-14 - 2026-02-15' },
-    { id: 3, text: '2026-02-27 - 2026-02-28' }
-  ]);
-  
-  const [pickupPoints, setPickupPoints] = useState([
-    { id: 1, price: '1000000', location: 'Orivia Agent Gambir, Jakarta', checked: true },
-    { id: 2, price: '850000', location: 'Soekarno Hatta Airport, Jakarta', checked: false },
-    { id: 3, price: '1050000', location: 'Komodo Airport, Labuan Bajo', checked: false }
-  ]);
-
-  const [includes, setIncludes] = useState([
-    { id: 1, name: 'Guide', checked: true },
-    { id: 2, name: 'Meals', checked: true },
-    { id: 3, name: 'First Aid', checked: true },
-    { id: 4, name: 'Insurance', checked: true },
-    { id: 5, name: 'Entrance Tickets', checked: false },
-    { id: 6, name: 'Transportation', checked: true },
-    { id: 7, name: 'Documentation', checked: false },
-    { id: 8, name: 'Accomodation', checked: true }
-  ]);
-
-  const [tripDays, setTripDays] = useState(3);
-  const [tripPlanner, setTripPlanner] = useState({
-    1: [
-      { id: 1, time: '06.00 - 07.00', duration: '1', activity: 'Meeting point & briefing', location: 'Bandar Udara Komodo' },
-      { id: 2, time: '07.00 - 08.00', duration: '1', activity: 'Sailing', location: 'Pulau Padar' },
-      { id: 3, time: '08.30 - 10.00', duration: '1.5', activity: 'Trekking & sightseeing', location: 'Pulau Padar' }
-    ],
-    2: [
-      { id: 1, time: '10.00 - 13.00', duration: '3', activity: 'Search time & snorkeling', location: 'Pink Beach' },
-      { id: 2, time: '13.00 - 14.00', duration: '1', activity: 'Lunch', location: 'On Boat' }
-    ],
-    3: [
-      { id: 1, time: '14.00 - 16.00', duration: '2', activity: 'Komodo trekking', location: 'Komodo Island' },
-      { id: 2, time: '16.00 - 18.00', duration: '2', activity: 'Island and Dinner', location: 'Komodo Island' }
-    ]
+  const search = (location && location.search) ? location.search : '';
+  const params = new URLSearchParams(search);
+  const qTripId = params.get('tripId');
+  let defaultTrip = {};
+  if (trips && trips.length > 0) {
+    if (qTripId) {
+      defaultTrip = trips.find(t => String(t.tripId) === String(qTripId)) || trips[0];
+    } else {
+      defaultTrip = trips[0];
+    }
+  }
+  const [tripName, setTripName] = useState(() => defaultTrip.name || 'Labuan Bajo');
+  const [tripPrice, setTripPrice] = useState(() => {
+    const p = defaultTrip.price;
+    if (p == null) return '1.450.000';
+    if (typeof p === 'number') return String(p).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return String(p);
   });
-  const [openDay, setOpenDay] = useState(1);
-
-  // Modal states
+  const [tripProvince, setTripProvince] = useState(() => defaultTrip.location?.state || 'East Nusa Tenggara, Indonesia');
+  const [tripCountry, setTripCountry] = useState(() => defaultTrip.location?.country || 'Indonesia');
+  const [tripSlot, setTripSlot] = useState(() => {
+    // Get first schedule's slot for this trip
+    const firstSchedule = tripSchedules.find(s => s.tripId === defaultTrip.tripId);
+    return (firstSchedule?.slotAvailable != null ? String(firstSchedule.slotAvailable) : '8');
+  });
+  const [tripDay, setTripDay] = useState(() => defaultTrip.duration?.days ? String(defaultTrip.duration.days) : '3');
+  const [tripNight, setTripNight] = useState(() => defaultTrip.duration?.nights ? String(defaultTrip.duration.nights) : '2');
+  const [tripDestType, setTripDestType] = useState(() => defaultTrip.destinationType || defaultTrip.type || 'Island Exploration');
+  const [tripDescription, setTripDescription] = useState(() => defaultTrip.description || 'Labuan Bajo, located at the eastern end of Rinca Flores, Manggarai, is famous for its stunning beauty and unique wildlife. The island is also home to the prehistoric Komodo dragons and monitor lizards. You can enjoy attractions for the local heritage and cultural aspects of the surrounding area.');
+  const MAX_IMAGES = 4;
+  const [imagePreviews, setImagePreviews] = useState(() => {
+    const imgs = defaultTrip.images || [];
+    const base = imgs.slice(0, MAX_IMAGES);
+    while (base.length < MAX_IMAGES) base.push(null);
+    if (base.every(i => !i)) {
+      return [
+        'https://via.placeholder.com/500x300/8B7355/FFFFFF?text=Labuan+Bajo+1',
+        'https://via.placeholder.com/100x100/8B7355/FFFFFF?text=Image+2',
+        'https://via.placeholder.com/100x100/8B7355/FFFFFF?text=Image+3',
+        'https://via.placeholder.com/100x100/8B7355/FFFFFF?text=Image+4'
+      ];
+    }
+    return base;
+  });
+  const fileInputRef = useRef(null);
+  const [schedules, setSchedules] = useState(() => {
+    if (!defaultTrip || !defaultTrip.tripId) return [];
+    const relatedSchedules = tripSchedules.filter(s => s.tripId === defaultTrip.tripId);
+    if (relatedSchedules.length) {
+      return relatedSchedules.map(s => ({ id: s.scheduleId, text: `${s.start_date || ''} - ${s.end_date || ''}` }));
+    }
+    return [];
+  });
+  const [pickupPoints, setPickupPoints] = useState(() => {
+    const pts = defaultTrip.pickup_points || [];
+    if (!pts.length) return [];
+    return pts.map((p, i) => {
+      if (typeof p === 'string') {
+        return { id: i + 1, price: '', location: p, checked: i === 0 };
+      }
+      return { id: i + 1, price: p.price != null ? String(p.price) : '', location: p.location || '', checked: i === 0 };
+    });
+  });
+  const [includes, setIncludes] = useState(() => {
+    const inc = defaultTrip.includes || [];
+    if (!inc.length) return [];
+    return inc.map((name, i) => ({ id: i + 1, name, checked: true }));
+  });
+  const [tripDays, setTripDays] = useState(() => defaultTrip.duration?.days || (defaultTrip.rundowns ? Object.keys(defaultTrip.rundowns).length : 3));
+  const [tripPlanner, setTripPlanner] = useState(() => {
+    const r = defaultTrip.rundowns || {};
+    const out = {};
+    Object.entries(r).forEach(([day, arr]) => {
+      out[day] = (arr || []).map((a, idx) => ({ id: idx + 1, ...a }));
+    });
+    return Object.keys(out).length ? out : { 1: [{ id: 1, time: '', duration: '', activity: '', location: '' }] };
+  });
+  const [openDay, setOpenDay] = useState(() => {
+    const first = Object.keys(defaultTrip.rundowns || {})[0];
+    return first ? Number(first) : 1;
+  });
   const [showIncludeModal, setShowIncludeModal] = useState(false);
   const [newIncludeName, setNewIncludeName] = useState('');
   const [showPickupModal, setShowPickupModal] = useState(false);
   const [newPickupPrice, setNewPickupPrice] = useState('');
   const [newPickupLocation, setNewPickupLocation] = useState('');
-
   const [showEditScheduleModal, setShowEditScheduleModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [editScheduleStartDate, setEditScheduleStartDate] = useState('');
   const [editScheduleEndDate, setEditScheduleEndDate] = useState('');
-
   const [newScheduleStartDate, setNewScheduleStartDate] = useState('');
   const [newScheduleEndDate, setNewScheduleEndDate] = useState('');
-
   const [scheduleError, setScheduleError] = useState('');
   const [editScheduleError, setEditScheduleError] = useState('');
-
   const [showEditPickupModal, setShowEditPickupModal] = useState(false);
   const [editingPickup, setEditingPickup] = useState(null);
   const [pickupError, setPickupError] = useState('');
@@ -124,12 +125,10 @@ export default function TripEditPage() {
   const [editingInclude, setEditingInclude] = useState(null);
   const [includeError, setIncludeError] = useState('');
   const [editIncludeError, setEditIncludeError] = useState('');
-
   const [showFieldModal, setShowFieldModal] = useState(false);
   const [fieldToEdit, setFieldToEdit] = useState('');
   const [fieldValue, setFieldValue] = useState('');
   const [fieldCustomValue, setFieldCustomValue] = useState('');
-
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [editLocationProvince, setEditLocationProvince] = useState('');
   const [editLocationCountry, setEditLocationCountry] = useState('');
@@ -473,8 +472,8 @@ export default function TripEditPage() {
 
   const pageStyle = {
     minHeight: '100vh',
-    backgroundColor: colors.accent1,
-    backgroundImage: `url(${extendAgentBg})`,
+    backgroundImage: 'url("https://images.unsplash.com/photo-1584715625116-c1dbbfcf19be?q=80&w=2000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")',
+    backgroundColor: colors.bg,
     backgroundSize: 'cover',
     backgroundPosition: 'center top',
     backgroundRepeat: 'no-repeat',
@@ -501,7 +500,7 @@ export default function TripEditPage() {
   if (isParticipant) {
     return (
       <div style={pageStyle}>
-        <Navbar style={{ position: 'sticky', top: 0, left: 0, right: 0, zIndex: 60, backgroundColor: '#FBFBF9' }} />
+        <Navbar style={{ position: 'sticky', top: 0, left: 0, right: 0, zIndex: 60, backgroundColor: `${colors.bg}33`, backdropFilter: 'saturate(120%) blur(6px)', borderBottom: `1px solid ${colors.bg}20` }} />
         <div style={containerStyle}>
           <TripTabs />
           <div style={{
@@ -521,7 +520,7 @@ export default function TripEditPage() {
 
   return (<>
     <div style={pageStyle}>
-      <Navbar style={{ position: 'sticky', top: 0, left: 0, right: 0, zIndex: 60, backgroundColor: colors.bg }} />
+      <Navbar style={{ position: 'sticky', top: 0, left: 0, right: 0, zIndex: 60, backgroundColor: `${colors.bg}33`, backdropFilter: 'saturate(120%) blur(6px)', borderBottom: `1px solid ${colors.bg}20` }} />
       <div style={containerStyle}>
         <TripTabs />
         
@@ -785,7 +784,7 @@ export default function TripEditPage() {
 
         {/* Trip Planner Section */}
         <div style={{ marginTop: spacing.xl }}>
-          <h2 style={{ fontSize: fontSize.xl, fontWeight: 1000, color: colors.accent1, marginBottom: spacing.lg }}>
+          <h2 style={{ fontSize: fontSize.xl, fontWeight: 1000, color: colors.accent5, marginBottom: spacing.lg }}>
             Trip Planner
           </h2>
           

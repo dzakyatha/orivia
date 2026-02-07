@@ -6,91 +6,7 @@ import Navbar from '../../components/ui/Navbar.jsx';
 import Button from '../../components/ui/Button';
 import { GridTripCard, SearchFiltersCard } from '../../components/ui/Card.jsx';
 import { colors, spacing, radius, fontSize, fontFamily } from '../../styles/variables';
-
-// Sample trip data
-const TRIP_DATA = [
-  {
-    id: 1,
-    name: 'Komodo Island',
-    location: { state: 'East Nusa Tenggara', country: 'Indonesia' },
-    date: { start_date: '2026-02-01', end_date: '2026-02-03' },
-    price: 4575000,
-    pax: 15,
-    duration: { days: 2, nights: 1 },
-    image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=500&h=300&fit=crop',
-    type: 'Island Exploration',
-    destinationType: 'Island Exploration'
-  },
-  {
-    id: 2,
-    name: 'Raja Ampat',
-    location: { state: 'Maluku', country: 'Indonesia' },
-    date: { start_date: '2026-02-01', end_date: '2026-02-03' },
-    price: 4175000,
-    pax: 15,
-    duration: { days: 3, nights: 2 },
-    image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=500&h=300&fit=crop',
-    type: 'Island Exploration',
-    destinationType: 'Island Exploration'
-  },
-  {
-    id: 3,
-    name: 'Lake Toba',
-    location: { state: 'North Sumatra', country: 'Indonesia' },
-    date: { start_date: '2026-02-01', end_date: '2026-02-03' },
-    price: 4575000,
-    pax: 15,
-    duration: { days: 4, nights: 3 },
-    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500&h=300&fit=crop',
-    type: 'City Tour',
-    destinationType: 'City Tour'
-  },
-  {
-    id: 4,
-    name: 'Bromo Tengger',
-    location: { state: 'East Java', country: 'Indonesia' },
-    date: { start_date: '2026-02-05', end_date: '2026-02-07' },
-    price: 3250000,
-    pax: 12,
-    duration: { days: 3, nights: 2 },
-    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500&h=300&fit=crop',
-    type: 'Mount Hiking',
-    destinationType: 'Mount Hiking'
-  },
-  {
-    id: 5,
-    name: 'Belitung Island',
-    location: { state: 'Bangka Belitung', country: 'Indonesia' },
-    date: { start_date: '2026-02-10', end_date: '2026-02-12' },
-    price: 2800000,
-    pax: 20,
-    duration: { days: 2, nights: 1 },
-    image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=500&h=300&fit=crop',
-    type: 'Island Exploration',
-    destinationType: 'Island Exploration'
-  },
-  {
-    id: 6,
-    name: 'Wakatobi Diving',
-    location: { state: 'Southeast Sulawesi', country: 'Indonesia' },
-    date: { start_date: '2026-02-15', end_date: '2026-02-19' },
-    price: 6500000,
-    pax: 10,
-    duration: { days: 5, nights: 4 },
-    image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=500&h=300&fit=crop',
-    type: 'Wildlife Exploration',
-    destinationType: 'Wildlife Exploration'
-  }
-];
-
-const DESTINATION_TYPES = [
-  'Island Exploration',
-  'Mount Hiking',
-  'Camping Ground',
-  'City Tour',
-  'Wildlife Exploration',
-  'Other'
-];
+import { trips, tripSchedules, DESTINATION_TYPES } from '../../mocks/mockData.js';
 
 export default function CustomerExplorePage() {
   const navigate = useNavigate();
@@ -98,7 +14,6 @@ export default function CustomerExplorePage() {
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [selectedDays, setSelectedDays] = useState('');
   const [selectedNights, setSelectedNights] = useState('');
-  // start/end/location/pax are editable but not applied until Search is clicked
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [location, setLocation] = useState('');
@@ -117,17 +32,24 @@ export default function CustomerExplorePage() {
     return `Rp ${price.toLocaleString('id-ID')}`;
   };
 
-  // Filter trips by price range
-  const filteredPrice = TRIP_DATA.filter((trip) => {
-    const price = Number(trip.price || 0);
+  // Filter schedules by building composite view: trip master + schedule data
+  // Customer only sees ACTIVE schedules
+  const filteredByStatus = tripSchedules.filter(schedule => schedule.status === 'ACTIVE');
+
+  // Filter by price (from trip master)
+  const filteredPrice = filteredByStatus.filter((schedule) => {
+    const trip = trips.find(t => t.tripId === schedule.tripId);
+    const price = Number(trip?.price || 0);
     const min = Number(priceRange?.[0] ?? -Infinity);
     const max = Number(priceRange?.[1] ?? Infinity);
     return price >= min && price <= max;
   });
 
-  // Filter trips based on destination types and duration (applied on price-filtered set)
-  // Note: startDate/endDate/location/pax are only applied when `appliedFilters` is set (Search clicked)
-  const filteredTrips = filteredPrice.filter((trip) => {
+  // Filter by type, duration, dates, location, pax
+  const filteredTrips = filteredPrice.filter((schedule) => {
+    const trip = trips.find(t => t.tripId === schedule.tripId);
+    if (!trip) return false;
+
     // destination type filter
     if (selectedTypes && selectedTypes.length > 0 && !selectedTypes.includes(trip.destinationType)) {
       return false;
@@ -159,27 +81,37 @@ export default function CustomerExplorePage() {
       if (!hay.includes(needle)) return false;
     }
 
-    // Date overlap filter: require trip dates to overlap requested range
+    // Date overlap filter: require schedule dates to overlap requested range
     if (aStart || aEnd) {
       const rqStart = aStart ? new Date(aStart) : null;
       const rqEnd = aEnd ? new Date(aEnd) : null;
 
-      const tripStart = trip.date?.start_date ? new Date(trip.date.start_date) : null;
-      const tripEnd = trip.date?.end_date ? new Date(trip.date.end_date) : null;
+      const scheduleStart = schedule.start_date ? new Date(schedule.start_date) : null;
+      const scheduleEnd = schedule.end_date ? new Date(schedule.end_date) : null;
 
-      if (tripStart && tripEnd) {
+      if (scheduleStart && scheduleEnd) {
         if (rqStart && rqEnd) {
-          // overlap if tripStart <= rqEnd AND tripEnd >= rqStart
-          if (!(tripStart <= rqEnd && tripEnd >= rqStart)) return false;
+          // overlap if scheduleStart <= rqEnd AND scheduleEnd >= rqStart
+          if (!(scheduleStart <= rqEnd && scheduleEnd >= rqStart)) return false;
         } else if (rqStart && !rqEnd) {
-          if (tripEnd < rqStart) return false;
+          if (scheduleEnd < rqStart) return false;
         } else if (!rqStart && rqEnd) {
-          if (tripStart > rqEnd) return false;
+          if (scheduleStart > rqEnd) return false;
         }
       }
     }
 
     return true;
+  }).map(schedule => {
+    // Merge schedule data with trip master for display
+    const trip = trips.find(t => t.tripId === schedule.tripId);
+    return {
+      ...trip,
+      scheduleId: schedule.scheduleId,
+      date: { start_date: schedule.start_date, end_date: schedule.end_date },
+      status: schedule.status,
+      slotAvailable: schedule.slotAvailable
+    };
   });
 
   return (
@@ -435,10 +367,11 @@ export default function CustomerExplorePage() {
                 <GridTripCard
                   key={trip.id}
                   trip={trip}
-                  onClick={() => { if (trip.id === 1) navigate('/explore/booking'); }}
+                  onClick={() => navigate(`/explore/booking/${trip.id}`)}
                 />
               ))}
             </div>
+            <div style={{ height: 100 }} />
           </div>
         </div>
       </div>

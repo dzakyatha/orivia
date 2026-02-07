@@ -192,10 +192,11 @@ REST_AUTH = {
     'JWT_AUTH_COOKIE': 'orivia-auth',
     'JWT_AUTH_REFRESH_COOKIE': 'orivia-refresh',
     'USER_DETAILS_SERIALIZER': 'users.serializers.CustomUserSerializer',
-    'REGISTER_SERIALIZER': 'users.serializers.CustomRegisterSerializer',  # Add this
+    'REGISTER_SERIALIZER': 'users.serializers.CustomRegisterSerializer',
     'JWT_AUTH_HTTPONLY': True,
     'JWT_AUTH_SECURE': not DEBUG,
     'JWT_AUTH_SAMESITE': 'Lax',
+    'LOGIN_SERIALIZER': 'dj_rest_auth.serializers.LoginSerializer',
 }
 
 # Django Allauth Configuration
@@ -209,13 +210,6 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
-
-# Rest Auth Configuration
-REST_AUTH = {
-    'LOGIN_SERIALIZER': 'dj_rest_auth.serializers.LoginSerializer',
-    'USER_DETAILS_SERIALIZER': 'users.serializers.CustomUserSerializer',
-    'REGISTER_SERIALIZER': 'users.serializers.CustomRegisterSerializer',
-}
 
 # JWT Settings (SimpleJWT)
 SIMPLE_JWT = {

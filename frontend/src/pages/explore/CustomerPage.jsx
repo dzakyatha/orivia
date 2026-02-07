@@ -10,7 +10,7 @@ import { trips, tripSchedules, DESTINATION_TYPES } from '../../mocks/mockData.js
 
 export default function CustomerExplorePage() {
   const navigate = useNavigate();
-  const [priceRange, setPriceRange] = useState(null);
+  const [priceRange, setPriceRange] = useState([0, 10000000]);
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [selectedDays, setSelectedDays] = useState('');
   const [selectedNights, setSelectedNights] = useState('');
@@ -107,6 +107,7 @@ export default function CustomerExplorePage() {
     const trip = trips.find(t => t.tripId === schedule.tripId);
     return {
       ...trip,
+      id: trip?.tripId,
       scheduleId: schedule.scheduleId,
       date: { start_date: schedule.start_date, end_date: schedule.end_date },
       status: schedule.status,
@@ -115,57 +116,24 @@ export default function CustomerExplorePage() {
   });
 
   return (
-    <div style={{
-      height: '100vh',
-      overflow: 'hidden',      
-      backgroundColor: colors.accent1,
-      backgroundImage: 'url(https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?q=90&w=1920&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D)',
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundAttachment: 'fixed',
-      fontFamily: fontFamily.base
-    }}>
+    <div style={{ height: '100vh', overflow: 'hidden', backgroundColor: colors.accent1, backgroundImage: 'url(https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?q=90&w=1920&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', fontFamily: fontFamily.base }}>
       {/* Fixed Navbar */}
       <Navbar />
 
       {/* Main Container */}
-      <div style={{
-        maxWidth: '1400px',
-        margin: '0 auto',
-        padding: spacing.lg,
-        display: 'grid',
-        gridTemplateColumns: '290px 1fr',
-        gap: spacing.xl,
-        alignItems: 'start'
-      }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: spacing.lg, display: 'grid', gridTemplateColumns: '290px 1fr', gap: spacing.xl, alignItems: 'start' }}>
         
         {/* LEFT PANEL - Filter Section (Fixed) */}
-        <div style={{
-          position: 'sticky',
-          top: '100px',
-          backgroundColor: 'rgba(85, 87, 62, 0.95)',
-          borderRadius: radius.lg,
-          padding: spacing.lg,
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
-          backdropFilter: 'blur(10px)'
-        }}>
+        <div style={{ position: 'sticky', top: '100px', backgroundColor: 'rgba(85, 87, 62, 0.95)', borderRadius: radius.lg, padding: spacing.lg, boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)', backdropFilter: 'blur(10px)' }}>
           {/* Price Range */}
           <div style={{ marginBottom: spacing.xl }}>
-            <h3 style={{ 
-              color: colors.bg, 
-              fontSize: fontSize.lg, 
-              fontWeight: 700,
-              marginBottom: spacing.md,
-              fontFamily: fontFamily.base
-            }}>
-              Price Range
-            </h3>
+            <h3 style={{ color: colors.bg, fontSize: fontSize.lg, fontWeight: 700, marginBottom: spacing.md, fontFamily: fontFamily.base }}>Price Range</h3>
             <input
               type="range"
-              min="500000"
+              min="0"
               max="10000000"
               step="100000"
-              value={priceRange?.[0] ?? 500000}
+              value={priceRange?.[0] ?? 0}
               onChange={(e) => setPriceRange([Number(e.target.value), priceRange?.[1] ?? 10000000])}
               style={{
                 width: '100%',
@@ -175,24 +143,18 @@ export default function CustomerExplorePage() {
             />
             <input
               type="range"
-              min="500000"
+              min="0"
               max="10000000"
               step="100000"
               value={priceRange?.[1] ?? 10000000}
-              onChange={(e) => setPriceRange([priceRange?.[0] ?? 500000, Number(e.target.value)])}
+              onChange={(e) => setPriceRange([priceRange?.[0] ?? 0, Number(e.target.value)])}
               style={{
                 width: '100%',
                 marginBottom: spacing.sm,
                 accentColor: colors.accent3
               }}
             />
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between',
-              color: colors.bg,
-              fontSize: fontSize.sm,
-              fontWeight: 600
-            }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: colors.bg, fontSize: fontSize.sm, fontWeight: 600 }}>
               <span>{priceRange ? formatPrice(priceRange[0]) : 'Rp 0'}</span>
               <span>-</span>
               <span>{priceRange ? formatPrice(priceRange[1]) : 'Rp 0'}</span>
@@ -201,15 +163,7 @@ export default function CustomerExplorePage() {
 
           {/* Destination Type */}
           <div style={{ marginBottom: spacing.xl }}>
-            <h3 style={{ 
-              color: colors.bg, 
-              fontSize: fontSize.lg, 
-              fontWeight: 700,
-              marginBottom: spacing.md,
-              fontFamily: fontFamily.base
-            }}>
-              Destination Type
-            </h3>
+            <h3 style={{ color: colors.bg, fontSize: fontSize.lg, fontWeight: 700, marginBottom: spacing.md, fontFamily: fontFamily.base }}>Destination Type</h3>
             {DESTINATION_TYPES.map(type => (
               <label key={type} style={{
                 display: 'flex',
@@ -224,12 +178,7 @@ export default function CustomerExplorePage() {
                   type="checkbox"
                   checked={selectedTypes.includes(type)}
                   onChange={() => handleTypeToggle(type)}
-                  style={{
-                    width: 18,
-                    height: 18,
-                    cursor: 'pointer',
-                    accentColor: colors.accent3
-                  }}
+                  style={{ width: 18, height: 18, cursor: 'pointer', accentColor: colors.accent3 }}
                 />
                 {type}
               </label>
@@ -238,29 +187,11 @@ export default function CustomerExplorePage() {
 
           {/* Duration */}
           <div>
-            <h3 style={{ 
-              color: colors.bg, 
-              fontSize: fontSize.lg, 
-              fontWeight: 700,
-              marginBottom: spacing.md,
-              fontFamily: fontFamily.base
-            }}>
+            <h3 style={{color: colors.bg, fontSize: fontSize.lg, fontWeight: 700,marginBottom: spacing.md,fontFamily: fontFamily.base}}>
               Duration
             </h3>
             <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'nowrap', alignItems: 'center' }}>
-              <div style={{
-                backgroundColor: colors.accent3,
-                color: colors.bg,
-                padding: `${spacing.xs} ${spacing.sm}`,
-                borderRadius: radius.md,
-                fontSize: fontSize.sm,
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: spacing.sm,
-                flex: '0 0 auto',
-                paddingLeft: '25px'
-              }}>
+              <div style={{backgroundColor: colors.accent3, color: colors.bg, padding: `${spacing.xs} ${spacing.sm}`, borderRadius: radius.md, fontSize: fontSize.sm, fontWeight: 600, display: 'flex', alignItems: 'center', gap: spacing.sm, flex: '0 0 auto', paddingLeft: '25px'}}>
                 <span>Day :</span>
                 <input
                   type="number"
@@ -273,33 +204,12 @@ export default function CustomerExplorePage() {
                     if (v < 0) v = 0;
                     setSelectedDays(v);
                   }}
-                  style={{
-                    width: 40,
-                    padding: '2px 6px',
-                    borderRadius: radius.sm || 6,
-                    border: 'none',
-                    fontSize: fontSize.sm,
-                    fontWeight: 700,
-                    textAlign: 'center',
-                    background: 'rgba(255,255,255,0.06)',
-                    color: colors.bg
+                  style={{width: 40, padding: '2px 6px', borderRadius: radius.sm || 6, border: 'none', fontSize: fontSize.sm, fontWeight: 700, textAlign: 'center', background: 'rgba(255,255,255,0.06)', color: colors.bg
                   }}
                 />
               </div>
 
-              <div style={{
-                backgroundColor: colors.accent3,
-                color: colors.bg,
-                padding: `${spacing.xs} ${spacing.sm}`,
-                borderRadius: radius.md,
-                fontSize: fontSize.sm,
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: spacing.sm,
-                flex: '0 0 auto',
-                 paddingLeft: '25px'
-              }}>
+              <div style={{backgroundColor: colors.accent3, color: colors.bg, padding: `${spacing.xs} ${spacing.sm}`, borderRadius: radius.md, fontSize: fontSize.sm, fontWeight: 600, display: 'flex', alignItems: 'center', gap: spacing.sm, flex: '0 0 auto',  paddingLeft: '25px'}}>
                 <span>Night :</span>
                 <input
                   type="number"
@@ -312,17 +222,7 @@ export default function CustomerExplorePage() {
                     if (v < 0) v = 0;
                     setSelectedNights(v);
                   }}
-                  style={{
-                    width: 40,
-                    padding: '2px 6px',
-                    borderRadius: radius.sm || 6,
-                    border: 'none',
-                    fontSize: fontSize.sm,
-                    fontWeight: 700,
-                    textAlign: 'center',
-                    background: 'rgba(255,255,255,0.06)',
-                    color: colors.bg
-                  }}
+                  style={{width: 40, padding: '2px 6px', borderRadius: radius.sm || 6, border: 'none', fontSize: fontSize.sm, fontWeight: 700, textAlign: 'center', background: 'rgba(255,255,255,0.06)', color: colors.bg}}
                 />
               </div>
             </div>
@@ -358,16 +258,12 @@ export default function CustomerExplorePage() {
 
           {/* CARD GRID SECTION (Scrollable) */}
           <div className="cards-scroll">
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: spacing.lg
-            }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.lg }}>
               {filteredTrips.map(trip => (
                 <GridTripCard
-                  key={trip.id}
+                  key={trip.scheduleId}
                   trip={trip}
-                  onClick={() => navigate(`/explore/booking/${trip.id}`)}
+                  onClick={() => navigate(`/explore/booking/${trip.scheduleId}`)}
                 />
               ))}
             </div>

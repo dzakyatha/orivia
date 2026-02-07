@@ -15,6 +15,7 @@ import TripEditPage from './pages/trip/TripEditPage.jsx';
 import ParticipantPage from './pages/trip/ParticipantPage.jsx';
 import CustomerExplorePage from './pages/explore/CustomerPage.jsx';
 import CustomerBookingPage from './pages/explore/BookingPage.jsx';
+import CheckoutPage from './pages/explore/CheckoutPage.jsx';
 
 const App = () => {
   return (
@@ -36,6 +37,7 @@ const App = () => {
         <Route path="/explore/customer" element={<CustomerExplorePage />} />
         <Route path="/explore/booking" element={<CustomerBookingPage />} />
         <Route path="/explore/booking/:id" element={<CustomerBookingPage />} />
+        <Route path="/explore/booking/checkout/*" element={<CheckoutPage />} />
       </Routes>
     </Router>
   );

@@ -299,7 +299,7 @@ export default function BookingPage() {
                       justifyContent: 'center',
                       gap: spacing.sm
                     }}
-                    onClick={() => navigate('/explore/booking/checkout/details')}
+                    onClick={() => navigate('/explore/booking/checkout/details', { state: { scheduleId: schedule?.scheduleId || null, tripId: trip?.tripId || null } })}
                   >
                     <FontAwesomeIcon icon={faCheck} />
                     Book Trip

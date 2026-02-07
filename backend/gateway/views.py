@@ -3,6 +3,7 @@ from django.conf import settings
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 class GatewayProxyView(APIView):
     """
@@ -11,12 +12,12 @@ class GatewayProxyView(APIView):
     # Verify user identity via JWT
     permission_classes = [IsAuthenticated]
 
-    def dispatch(self, request, *args, **kwargs):
+    def _proxy_request(self, request, service, path):
+        """
+        Helper method to proxy requests to microservices
+        """
         # Determine target service
-        service_name = kwargs.get('service')
-        path = kwargs.get('path', '')
-        
-        if service_name == 'planner':
+        if service == 'planner':
             base_url = settings.TRAVEL_PLANNER_URL
             # Map external 'planner' to internal 'perencanaan'
             internal_path = f"perencanaan/{path.lstrip('/')}"
@@ -28,14 +29,18 @@ class GatewayProxyView(APIView):
         
         # Forward the request
         try:
-            # Forward JWT Authorization header and user info
-            headers = {key: value for key, value in request.headers.items() 
-                      if key.lower() not in ['host', 'content-length']}
+            # Forward headers, but strip security-sensitive ones
+            # Exclude host, content-length, and any user identity headers
+            excluded_headers = ['host', 'content-length', 'x-user-id', 'x-user-role']
+            headers = {
+                key: value for key, value in request.headers.items() 
+                if key.lower() not in excluded_headers
+            }
             
-            # Add user ID to headers for microservice to identify user
-            if request.user.is_authenticated:
-                headers['X-User-ID'] = str(request.user.id)
-                headers['X-User-Role'] = request.user.role
+            # Always set user identity from authenticated server-side context
+            # This prevents header spoofing attacks
+            headers['X-User-ID'] = str(request.user.id)
+            headers['X-User-Role'] = request.user.role
             
             # Explicitly set Content-Type if provided
             if request.content_type:
@@ -46,7 +51,7 @@ class GatewayProxyView(APIView):
                 url=url,
                 headers=headers,
                 data=request.body,
-                params=request.GET,
+                params=request.GET.dict(),
                 timeout=10
             )
 
@@ -60,3 +65,23 @@ class GatewayProxyView(APIView):
         except requests.exceptions.RequestException as e:
             # Handle connection errors (Service Down)
             return HttpResponse(f"Gateway Error: {str(e)}", status=503)
+
+    def get(self, request, service, path='', *args, **kwargs):
+        """Handle GET requests"""
+        return self._proxy_request(request, service, path)
+
+    def post(self, request, service, path='', *args, **kwargs):
+        """Handle POST requests"""
+        return self._proxy_request(request, service, path)
+
+    def put(self, request, service, path='', *args, **kwargs):
+        """Handle PUT requests"""
+        return self._proxy_request(request, service, path)
+
+    def patch(self, request, service, path='', *args, **kwargs):
+        """Handle PATCH requests"""
+        return self._proxy_request(request, service, path)
+
+    def delete(self, request, service, path='', *args, **kwargs):
+        """Handle DELETE requests"""
+        return self._proxy_request(request, service, path)

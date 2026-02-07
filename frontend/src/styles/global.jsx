@@ -91,17 +91,17 @@ export const globalStyles = `
 		outline: none;
 	}
 
-	/* Allow native scrollbars by default; custom areas use .custom-scrollbar */
+	/* Hide page-level scrollbars but keep custom-scrollbar/.cards-scroll visible */
 	/* Firefox */
-	html, body {
-		scrollbar-width: auto;
-		-ms-overflow-style: auto; /* IE 10+ */
+	html, body, #root {
+		scrollbar-width: none; /* hide page scrollbar in Firefox */
+		-ms-overflow-style: none; /* IE 10+ */
 	}
 
-	/* WebKit (Chrome, Safari, Opera) */
-	html::-webkit-scrollbar, body::-webkit-scrollbar {
-		width: auto;
-		height: auto;
+	/* WebKit (Chrome, Safari, Opera) - hide page scrollbar */
+	html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar {
+		width: 0;
+		height: 0;
 	}
 
 	::selection {
@@ -175,6 +175,35 @@ export const globalStyles = `
 
 	.cards-scroll::-webkit-scrollbar-thumb:hover {
 		background: rgba(127, 110, 40, 0.9);
+	}
+
+	/* Left summary panel fixed height with its own scrollbar */
+	.left-panel-fixed {
+		height: 488px;
+		overflow-y: auto;
+		padding-right: ${spacing.sm};
+		box-sizing: border-box;
+		scrollbar-width: thin;
+		scrollbar-color: ${colors.accent4} transparent;
+	}
+
+	.left-panel-fixed::-webkit-scrollbar {
+		width: 8px;
+	}
+
+	.left-panel-fixed::-webkit-scrollbar-track {
+		background: ${colors.accent3}12;
+		border-radius: 10px;
+	}
+
+	.left-panel-fixed::-webkit-scrollbar-thumb {
+		background: ${colors.accent4};
+		border-radius: 10px;
+		transition: background 0.2s ease;
+	}
+
+	.left-panel-fixed::-webkit-scrollbar-thumb:hover {
+		background: ${colors.accent5};
 	}
 `;
 

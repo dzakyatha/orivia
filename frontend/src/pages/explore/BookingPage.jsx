@@ -1,80 +1,108 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faCalendar, 
-  faLocationDot, 
-  faUsers, 
-  faCheck,
-  faChevronDown
-} from '@fortawesome/free-solid-svg-icons';
+import { faCalendar, faLocationDot, faUsers, faCheck,faChevronDown,faChevronLeft,faChevronRight} from '@fortawesome/free-solid-svg-icons';
 import Navbar from '../../components/ui/Navbar.jsx';
 import Button from '../../components/ui/Button';
+import { TripCard } from '../../components/ui/Card.jsx';
 import { colors, spacing, radius, fontSize, fontFamily } from '../../styles/variables';
+import { useParams } from 'react-router-dom';
+import { trips, tripSchedules, TRIP_RUNDOWNS, TRIP_IMAGES, INCLUDES, PICKUP_POINTS } from '../../mocks/mockData.js';
 
-// Sample rundown data
-const RUNDOWN_DATA = {
-  1: [
-    { time: '06.00 - 07.00', duration: '1', activity: 'Meeting point & briefing', location: 'Bandar Udara Komodo' },
-    { time: '07.00 - 09.30', duration: '2.5', activity: 'Sailing', location: 'Padar Island' },
-    { time: '09.30 - 11.00', duration: '1.5', activity: 'Trekking & sightseeing', location: 'Padar Island' },
-    { time: '11.00 - 13.00', duration: '2', activity: 'Beach time & snorkeling', location: 'Pink Beach' },
-    { time: '13.00 - 14.00', duration: '1', activity: 'Lunch', location: 'On Boat' },
-    { time: '14.00 - 16.00', duration: '2', activity: 'Komodo trekking', location: 'Komodo Island' },
-    { time: '16.00 - 19.00', duration: '3', activity: 'Sunset and Dinner', location: 'Sunset and Dinner' }
-  ],
-  2: [
-    { time: '06.00 - 08.00', duration: '2', activity: 'Breakfast & check out', location: 'Hotel' },
-    { time: '08.00 - 10.00', duration: '2', activity: 'Island hopping', location: 'Kanawa Island' },
-    { time: '10.00 - 12.00', duration: '2', activity: 'Snorkeling', location: 'Manta Point' },
-    { time: '12.00 - 13.00', duration: '1', activity: 'Lunch', location: 'Local Restaurant' }
-  ]
+const monthNamesID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+const formatISODate = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const day = d.getDate();
+  const month = monthNamesID[d.getMonth()];
+  const year = d.getFullYear();
+  return `${day} ${month} ${year}`;
 };
 
-const INCLUDES = [
-  'Guide',
-  'Meals',
-  'First Aid',
-  'Insurance',
-  'Entrance Ticket',
-  'Transportation',
-  'Documentation',
-  'Accommodation'
-];
+const formatDateRange = (startIso, endIso) => {
+  if (!startIso && !endIso) return '';
+  if (startIso && endIso) return `${formatISODate(startIso)} - ${formatISODate(endIso)}`;
+  return startIso ? formatISODate(startIso) : formatISODate(endIso);
+};
 
-const PICKUP_POINTS = [
-  'Orivia Agent Gambir, Jakarta',
-  'Orivia Agent Pasteur, Bandung',
-  'Komodo Airport, Labuan Bajo',
-  'Soekarno Hatta Airport, Jakarta'
-];
+const formatRupiah = (value) => {
+  if (value == null) return '';
+  try {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 2 }).format(Number(value));
+  } catch (e) {
+    return String(value);
+  }
+};
+
+const formatDurationText = (duration) => {
+  if (!duration) return '';
+  const parts = [];
+  if (typeof duration.days === 'number') parts.push(`${duration.days} Day`);
+  if (typeof duration.nights === 'number') parts.push(`${duration.nights} Night`);
+  return parts.join(' ');
+};
 
 export default function BookingPage() {
   const [selectedDay, setSelectedDay] = useState(1);
+  const [imgIndex, setImgIndex] = useState(0);
+  const touchStartX = useRef(null);
+  const touchEndX = useRef(null);
+  const [isHover, setIsHover] = useState(false);
+  const { id } = useParams();
+  const tripId = id ? Number(id) : null;
+  const trip = trips.find(t => Number(t.tripId) === tripId) || null;
+  const TRIP_IMAGES_LOCAL = (trip && trip.images) || TRIP_IMAGES[tripId] || TRIP_IMAGES[1] || [];
+  const RUNDOWN_DATA_LOCAL = (trip && trip.rundowns) || TRIP_RUNDOWNS || {};
+  const INCLUDES_LOCAL = (trip && trip.includes) || INCLUDES || [];
+  const PICKUP_LOCAL = (trip && trip.pickup_points) || PICKUP_POINTS || [];
+
+  const prevImage = () => {
+    setImgIndex((i) => (i - 1 + TRIP_IMAGES_LOCAL.length) % TRIP_IMAGES_LOCAL.length);
+  };
+
+  const nextImage = () => {
+    setImgIndex((i) => (i + 1) % TRIP_IMAGES_LOCAL.length);
+  };
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e) => {
+    touchEndX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartX.current == null || touchEndX.current == null) return;
+    const dx = touchStartX.current - touchEndX.current;
+    const threshold = 50; // px
+    if (dx > threshold) {
+      nextImage();
+    } else if (dx < -threshold) {
+      prevImage();
+    }
+    touchStartX.current = null;
+    touchEndX.current = null;
+  };
 
   return (
       <div style={{
         minHeight: '100vh',
-        backgroundColor: '#E8E4DC',
+        backgroundImage: 'url("https://images.unsplash.com/photo-1584715625116-c1dbbfcf19be?q=80&w=2000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")',
+        backgroundColor: colors.bg,        backgroundSize: 'cover',
+        backgroundPosition: 'top-center',
+        backgroundRepeat: 'no-repeat',
         fontFamily: fontFamily.base
       }}>
-      {/* Fixed Navbar */}
-      <Navbar style={{ 
-        position: 'sticky', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        zIndex: 100,
-        backgroundColor: colors.bg
-      }} />
+      <Navbar style={{ position: 'sticky', top: 0, left: 0, right: 0, zIndex: 60, backgroundColor: `${colors.bg}33`, backdropFilter: 'saturate(120%) blur(6px)', borderBottom: `1px solid ${colors.bg}20` }} />
 
-      {/* Main Container */}
       <div style={{
         maxWidth: '1400px',
         margin: '0 auto',
         padding: spacing.lg
       }}>
         
-        {/* Top Section: Image + Info */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: '0.5fr 0.5fr',
@@ -91,15 +119,110 @@ export default function BookingPage() {
             minHeight: '600px',
             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)'
           }}>
-            <img 
-              src="https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&h=600&fit=crop" 
-              alt="Labuan Bajo"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover'
-              }}
-            />
+              <div style={{ width: '100%', height: '100%', position: 'relative' }}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onMouseEnter={() => setIsHover(true)}
+                onMouseLeave={() => setIsHover(false)}
+              >
+              <img
+                src={TRIP_IMAGES_LOCAL[imgIndex]}
+                alt={`${trip ? trip.name : 'Trip'} ${imgIndex + 1}`}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block'
+                }}
+              />
+
+              {/* Left Arrow */}
+              <button
+                aria-label="Previous image"
+                onClick={prevImage}
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  background: 'transparent',
+                  color: colors.bg,
+                  width: 40,
+                  height: 40,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 2,
+                  }}
+              >
+                <FontAwesomeIcon icon={faChevronLeft} />
+              </button>
+
+              {/* Right Arrow */}
+              <button
+                aria-label="Next image"
+                onClick={nextImage}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  top: '50%',
+                  background: 'transparent',
+                  color: colors.bg,
+                  width: 40,
+                  height: 40,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 2,
+                }}
+              >
+                <FontAwesomeIcon icon={faChevronRight} />
+              </button>
+
+              {/* Hover overlay for first image */}
+              {imgIndex === 0 && isHover && (
+                <div aria-hidden style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  background: 'rgba(0,0,0,0.5)',
+                  color: '#fff',
+                  padding: `${spacing.md}`,
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
+                  pointerEvents: 'none',
+                  zIndex: 1
+                }}>
+                  <div style={{ fontSize: fontSize.lg, fontWeight: 700, marginBottom: spacing.xs, paddingLeft: spacing.lg }}>{trip ? trip.name : 'About this place'}</div>
+                  <div style={{ fontSize: fontSize.base, textAlign: 'justify', padding: `${spacing.md} ${spacing.lg} ${spacing.lg} ${spacing.lg}`, lineHeight: 1.45, maxHeight: '40%', overflowY: 'auto' }}>{trip ? trip.description : ''}</div>
+                </div>
+              )}
+
+              {imgIndex >= 1 && isHover && (
+                <div aria-hidden style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  background: 'rgba(0,0,0,0.5)',
+                  color: '#fff',
+                  padding: `${spacing.md}`,
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
+                  pointerEvents: 'none',
+                  zIndex: 1
+                }}>
+                </div>
+              )}
+
+            </div>
           </div>
 
           {/* LAYOUT 2 - Information (Right) */}
@@ -115,33 +238,37 @@ export default function BookingPage() {
                 <h1 style={{
                   fontSize: '40px',
                   fontWeight: 800,
-                  color: colors.accent5,
+                  color: colors.bg,
                   marginBottom: spacing.xs,
                   fontFamily: fontFamily.base,
                   lineHeight: 1.2
                 }}>
-                  Labuan Bajo
+                  {trip ? trip.name : 'Trip'}
                 </h1>
                 <p style={{
                   fontSize: fontSize.xl,
-                  color: colors.accent4,
+                  color: colors.accent1,
                   fontWeight: 600,
                   marginBottom: spacing.xs
                 }}>
-                  2D1N • Island Exploration
+                  {(() => {
+                    if (!trip) return '2 Day 1 Night • Island Exploration';
+                    const durStr = formatDurationText(trip.duration);
+                    const subtitle = [durStr, trip.destinationType || trip.type].filter(Boolean).join(' • ');
+                    return subtitle;
+                  })()}
                 </p>
               </div>
 
               <div style={{ minWidth: 220, maxWidth: 300 }}>
                 <div style={{
-                  backgroundColor: colors.bg,
                   padding: spacing.lg,
                   borderRadius: radius.lg,
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
                 }}>
                   <div style={{
                     fontSize: fontSize.sm,
-                    color: colors.text,
+                    color: colors.accent2,
                     marginBottom: spacing.xs
                   }}>
                     Starting from
@@ -149,10 +276,10 @@ export default function BookingPage() {
                   <div style={{
                     fontSize: '24px',
                     fontWeight: 700,
-                    color: colors.accent4,
+                    color: colors.accent1,
                     marginBottom: spacing.md
                   }}>
-                    Rp4.575.000,00<span style={{ fontSize: fontSize.lg, fontWeight: 600 }}>/pax</span>
+                    {formatRupiah(trip?.price)}<span style={{ fontSize: fontSize.lg, fontWeight: 600 }}>/pax</span>
                   </div>
                   <Button 
                     variant="primary" 
@@ -185,19 +312,15 @@ export default function BookingPage() {
             }}>
               
               {/* 2.2 Trip Information Card (Top Left) */}
-              <div style={{
-                backgroundColor: '#E8A962',
-                borderRadius: radius.lg,
-                padding: spacing.lg,
-                border: '2px solid #C9935A',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+              <TripCard style={{
+                padding: spacing.lg
               }}>
                 <h3 style={{
                   fontSize: fontSize.xl,
                   fontWeight: 700,
-                  color: colors.bg,
                   marginBottom: spacing.md,
-                  fontFamily: fontFamily.base
+                  fontFamily: fontFamily.base,
+                  color: colors.accent5
                 }}>
                   Trip Information
                 </h3>
@@ -210,46 +333,24 @@ export default function BookingPage() {
                   paddingRight: spacing.sm,
                   boxSizing: 'border-box'
                 }}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: spacing.sm,
-                    color: colors.bg,
-                    fontSize: fontSize.base
-                  }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: fontSize.base }}>
                     <FontAwesomeIcon icon={faCalendar} />
-                    <span>1-2 February 2026</span>
+                    <span>{trip ? formatDateRange(trip.date.start_date, trip.date.end_date) : formatDateRange('2026-02-01','2026-02-02')}</span>
                   </div>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: spacing.sm,
-                    color: colors.bg,
-                    fontSize: fontSize.base
-                  }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: fontSize.base }}>
                     <FontAwesomeIcon icon={faLocationDot} />
-                    <span>East Nusa Tenggara, Indonesia</span>
+                    <span>{trip ? `${trip.location.state}, ${trip.location.country}` : 'East Nusa Tenggara, Indonesia'}</span>
                   </div>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: spacing.sm,
-                    color: colors.bg,
-                    fontSize: fontSize.base
-                  }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: fontSize.base }}>
                     <FontAwesomeIcon icon={faUsers} />
-                    <span>8/15 Slots Available</span>
+                    <span>{trip ? `${trip.slotAvailable}/${trip.pax} Slots Available` : '8/15 Slots Available'}</span>
                   </div>
                 </div>
-              </div>
+              </TripCard>
 
               {/* 2.4 Include Card (Right Side - Spans 2 Rows) */}
-              <div style={{
-                backgroundColor: '#E8A962',
-                borderRadius: radius.lg,
+              <TripCard style={{
                 padding: spacing.md,
-                border: '2px solid #C9935A',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.06)',
                 gridRow: 'span 2',
                 alignSelf: 'stretch',
                 height: '100%',
@@ -258,9 +359,9 @@ export default function BookingPage() {
                 <h3 style={{
                   fontSize: fontSize.xl,
                   fontWeight: 700,
-                  color: colors.bg,
                   marginBottom: spacing.md,
-                  fontFamily: fontFamily.base
+                  fontFamily: fontFamily.base,
+                  color: colors.accent5
                 }}>
                   Include
                 </h3>
@@ -268,40 +369,30 @@ export default function BookingPage() {
                   display: 'flex',
                   flexDirection: 'column',
                   gap: spacing.sm,
-                  maxHeight: '280px',
+                  maxHeight: '300px',
                   overflowY: 'auto',
                   paddingRight: spacing.sm,
                   boxSizing: 'border-box'
                 }}>
-                  {INCLUDES.map((item, idx) => (
-                    <div key={idx} style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: spacing.sm,
-                      color: colors.bg,
-                      fontSize: fontSize.base
-                    }}>
+                  {(trip && trip.includes ? trip.includes : INCLUDES_LOCAL).map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: fontSize.base }}>
                       <FontAwesomeIcon icon={faCheck} style={{ width: 16 }} />
                       <span>{item}</span>
                     </div>
                   ))}
                 </div>
-              </div>
+              </TripCard>
 
               {/* 2.3 Pick-Up Point Card (Bottom Left) */}
-              <div style={{
-                backgroundColor: '#E8A962',
-                borderRadius: radius.lg,
-                padding: spacing.lg,
-                border: '2px solid #C9935A',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+              <TripCard style={{
+                padding: spacing.lg
               }}>
                 <h3 style={{
                   fontSize: fontSize.xl,
                   fontWeight: 700,
-                  color: colors.bg,
                   marginBottom: spacing.md,
-                  fontFamily: fontFamily.base
+                  fontFamily: fontFamily.base,
+                  color: colors.accent5
                 }}>
                   Pick-Up Point
                 </h3>
@@ -314,20 +405,14 @@ export default function BookingPage() {
                   paddingRight: spacing.xs,
                   boxSizing: 'border-box'
                 }}>
-                  {PICKUP_POINTS.map((point, idx) => (
-                    <div key={idx} style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: spacing.sm,
-                      color: colors.bg,
-                      fontSize: fontSize.base
-                    }}>
+                  {(trip && trip.pickup_points ? trip.pickup_points : PICKUP_LOCAL).map((point, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: fontSize.base }}>
                       <FontAwesomeIcon icon={faLocationDot} style={{ width: 16 }} />
                       <span>{point}</span>
                     </div>
                   ))}
                 </div>
-              </div>
+              </TripCard>
 
             </div>
           </div>
@@ -338,7 +423,7 @@ export default function BookingPage() {
           <h2 style={{
             fontSize: '36px',
             fontWeight: 800,
-            color: colors.accent5,
+            color: colors.bg,
             marginBottom: spacing.lg,
             fontFamily: fontFamily.base
           }}>
@@ -452,7 +537,7 @@ export default function BookingPage() {
                 </tr>
               </thead>
               <tbody>
-                {RUNDOWN_DATA[selectedDay].map((item, idx) => (
+                {(RUNDOWN_DATA_LOCAL[selectedDay] || []).map((item, idx) => (
                   <tr key={idx} style={{
                     backgroundColor: idx % 2 === 0 ? 'rgba(255, 255, 255, 0.05)' : 'transparent'
                   }}>

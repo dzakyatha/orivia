@@ -2,6 +2,7 @@ import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash, faTag, faUser, faLocationDot, faCalendar, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 import Button from './Button';
+import { tripSchedules } from '../../mocks/mockData';
 import {
   colors,
   spacing,
@@ -25,6 +26,36 @@ const Card = ({ children, style = {}, ...props }) => {
   return (
     <div style={cardStyle} {...props}>
       {children}
+    </div>
+  );
+};
+
+export const FeatureCard = ({ icon, title, description, style = {} }) => {
+  const featureCardStyle = {
+    flex: 1,
+    maxWidth: 480,
+    backgroundColor: '#F5F1E8',
+    borderRadius: 20,
+    padding: 40,
+    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center',
+    ...style,
+  };
+
+  return (
+    <div style={featureCardStyle}>
+      <div style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#FADD9B', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, boxShadow: '0 4px 12px rgba(250,221,155,0.3)' }}>
+        <FontAwesomeIcon icon={icon} style={{ fontSize: 44, color: '#0D2E3F' }} />
+      </div>
+      <h3 style={{ margin: 0, marginBottom: 16, color: '#0D2E3F', fontFamily: 'Poppins, sans-serif', fontSize: 24, fontWeight: 700 }}>
+        {title}
+      </h3>
+      <p style={{ margin: 0, color: '#0D2E3F', fontFamily: 'Lora, serif', fontSize: 17, lineHeight: 1.6, opacity: 0.85 }}>
+        {description}
+      </p>
     </div>
   );
 };
@@ -87,7 +118,9 @@ export const TripCard = ({ children, style = {}, ...props }) => {
 		backgroundColor: '#fff',
 		borderRadius: radius.md,
 		padding: spacing.lg,
-		boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
+		boxShadow: 'none',
+		border: '2px solid #00000043',
+		transition: 'border-color 180ms ease, transform 200ms ease',
 		...style,
 	};
 
@@ -396,12 +429,16 @@ export const GridTripCard = ({ trip = {}, onClick, style = {} }) => {
 					<div style={{ fontSize: fontSize.xs, color: colors.text }}>
 						<FontAwesomeIcon icon={faCalendar} size="sm" style={{ marginRight: spacing.xs }} />
 						{(function(){
+							const scheduleCount = tripSchedules ? tripSchedules.filter(s => s.tripId === trip.tripId).length : 0;
+							
+							if (scheduleCount > 0) {
+								return `${scheduleCount} schedule${scheduleCount > 1 ? 's' : ''}`;
+							}
+							
 							const ranges = getDateRanges(trip);
-							// If `date` is an array (AgentPage uses array of ranges), show how many ranges there are.
 							if (Array.isArray(trip.date)) {
 								return `${ranges.length} dates`;
 							}
-							// If there's at least one range (CustomerPage uses single object), show the first range as formatted dates.
 							if (ranges.length > 0) {
 								const r = ranges[0];
 								return formatDateRange(r.start, r.end, '');

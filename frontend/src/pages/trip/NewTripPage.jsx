@@ -8,27 +8,8 @@ import Modal, { modalStyles } from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
 import extendAgentBg from '../../assets/images/extendagentbg.jpg';
 import { colors, spacing, radius, fontSize, fontFamily } from '../../styles/variables';
-
-import { 
-	TripCard, 
-	ImageUploadCard, 
-	InputField, 
-	IconButton, 
-	AddButton, 
-	UploadButton, 
-	CardHeader, 
-	SectionTitle, 
-	ImagePreview, 
-	TextLink 
-} from '../../components/ui/Card';
-
-const DEST_OPTIONS = [
-	'Island Exploration',
-	'Mount Hiking',
-	'Camping Ground',
-	'City Tour',
-	'Wildlife Exploration'
-];
+import { DESTINATION_TYPES } from '../../mocks/mockData.js';
+import { TripCard, ImageUploadCard, InputField, IconButton, AddButton, UploadButton, CardHeader, SectionTitle, ImagePreview, TextLink } from '../../components/ui/Card';
 
 const NewTripPage = () => {
 	const navigate = useNavigate();
@@ -105,35 +86,24 @@ const NewTripPage = () => {
 	const [description, setDescription] = useState('');
 	const [destType, setDestType] = useState('');
 	const [destTypeCustom, setDestTypeCustom] = useState('');
-
 	const makeEmptyRows = (count = 3) => Array.from({ length: count }, (_, i) => ({ id: i + 1, time: '', duration: '', activity: '', location: '' }));
-
 	const [tripPlanner, setTripPlanner] = useState({
 		1: makeEmptyRows(3)
 	});
 	const [openDay, setOpenDay] = useState(1);
-
-	// Modal states
 	const [showIncludeModal, setShowIncludeModal] = useState(false);
 	const [newIncludeName, setNewIncludeName] = useState('');
 	const [showPickupModal, setShowPickupModal] = useState(false);
 	const [newPickupPrice, setNewPickupPrice] = useState('');
 	const [newPickupLocation, setNewPickupLocation] = useState('');
-
-	// Edit modal states
 	const [showEditScheduleModal, setShowEditScheduleModal] = useState(false);
 	const [editingSchedule, setEditingSchedule] = useState(null);
 	const [editScheduleStartDate, setEditScheduleStartDate] = useState('');
 	const [editScheduleEndDate, setEditScheduleEndDate] = useState('');
-
-	// New schedule inputs
 	const [newScheduleStartDate, setNewScheduleStartDate] = useState('');
 	const [newScheduleEndDate, setNewScheduleEndDate] = useState('');
-
-	// Inline error messages (shown in UI instead of window.alert)
 	const [scheduleError, setScheduleError] = useState('');
 	const [editScheduleError, setEditScheduleError] = useState('');
-
 	const [showEditPickupModal, setShowEditPickupModal] = useState(false);
 	const [editingPickup, setEditingPickup] = useState(null);
 	const [pickupError, setPickupError] = useState('');
@@ -323,8 +293,6 @@ const NewTripPage = () => {
 		let days = Number.isNaN(parsed) ? 1 : parsed;
 		if (days < 1) days = 1;
 		setTripDays(days);
-
-		// ensure planner has keys 1..days and trim extras
 		const newPlanner = { ...tripPlanner };
 		for (let i = 1; i <= days; i++) {
 			if (!newPlanner[i]) newPlanner[i] = makeEmptyRows(3);
@@ -403,8 +371,8 @@ const NewTripPage = () => {
 	const page = {
 		minHeight: '100vh',
 		fontFamily: fontFamily?.base || 'Inter, system-ui, -apple-system',
-		backgroundColor: colors.accent1,
-		backgroundImage: 'url(https://images.unsplash.com/photo-1615729947596-a598e5de0ab3?q=80&w=1600&auto=format&fit=crop)',
+		backgroundImage: 'url("https://images.unsplash.com/photo-1584715625116-c1dbbfcf19be?q=80&w=2000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")',
+		backgroundColor: colors.bg,
 		backgroundSize: 'cover',
 		backgroundPosition: 'center top',
 		backgroundRepeat: 'no-repeat',
@@ -431,7 +399,7 @@ const NewTripPage = () => {
 
 	return (<>
 		<div style={page}>
-			<Navbar style={{ position: 'sticky', top: 0, left: 0, right: 0, zIndex: 60, backgroundColor: colors.bg }} />
+			<Navbar style={{ position: 'sticky', top: 0, left: 0, right: 0, zIndex: 60, backgroundColor: `${colors.bg}33`, backdropFilter: 'saturate(120%) blur(6px)', borderBottom: `1px solid ${colors.bg}20` }} />
 				<div style={containerStyle}>
 					<div style={gridStyle}>
 						{/* LEFT COLUMN */}
@@ -580,10 +548,9 @@ const NewTripPage = () => {
 										</label>
 										<select value={destType} onChange={(e) => setDestType(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: radius.sm, border: '1px solid #D4C5B0', fontSize: fontSize.base, fontFamily: 'inherit', backgroundColor: '#FEFDFB', boxSizing: 'border-box', outline: 'none' }}>
 											<option value="">Select Type</option>
-											{DEST_OPTIONS.map(opt => (
+											{DESTINATION_TYPES.map(opt => (
 												<option key={opt} value={opt}>{opt}</option>
 											))}
-											<option value="Other">Other</option>
 										</select>
 										{destType === 'Other' && (
 											<div style={{ marginTop: spacing.sm }}>

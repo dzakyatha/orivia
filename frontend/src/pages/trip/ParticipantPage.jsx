@@ -6,24 +6,87 @@ import Navbar, { TripTabs } from '../../components/ui/Navbar.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import extendAgentBg from '../../assets/images/extendagentbg.jpg';
+import { trips, tripSchedules, passengers } from '../../mocks/mockData';
+import { useLocation } from 'react-router-dom';
 
 
 export default function ParticipantPage() {
-  const passengerSample = Array.from({ length: 13 }).map((_, i) => {
-    const gender = i % 2 === 0 ? 'Male' : 'Female';
-    return {
-      username: gender === 'Female' ? 'nakeiiiiii23' : `jekiiiii23${i}`,
-      fullname: 'siapa siapa siapa siapa',
-      gender,
-      dob: '07 Mar 2005',
-      nationality: 'Indonesia',
-      pickup: i % 3 === 0 ? 'Orivia Agent Gambir, Jakarta' : i % 3 === 1 ? 'Orivia Agent Pasteur, Bandung' : 'Soekarno Hatta Airport, Jakarta',
-      phone: '08123456789'
-    };
+
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const qScheduleId = params.get('scheduleId');
+  const defaultSchedule = tripSchedules && tripSchedules.length ? (qScheduleId ? tripSchedules.find(s => String(s.scheduleId) === String(qScheduleId)) : tripSchedules[0]) : null;
+  const defaultTrip = defaultSchedule ? trips.find(t => t.tripId === defaultSchedule.tripId) : (trips && trips.length ? trips[0] : null);
+  const schedules = defaultTrip && tripSchedules ? (
+    tripSchedules.filter(s => s.tripId === defaultTrip.tripId).map(s => ({ id: s.scheduleId, text: `${s.start_date || ''} - ${s.end_date || ''}` }))
+  ) : [];
+  const [selectedScheduleId, setSelectedScheduleId] = useState(schedules.length ? schedules[0].id : (defaultSchedule ? defaultSchedule.scheduleId : null));
+  const displayedSchedule = (selectedScheduleId != null) ? (tripSchedules.find(s => Number(s.scheduleId) === Number(selectedScheduleId)) || defaultSchedule) : defaultSchedule;
+  const displayedTrip = displayedSchedule ? trips.find(t => t.tripId === displayedSchedule.tripId) : defaultTrip;
+  const passengerSample = (displayedSchedule && displayedSchedule.participants && displayedSchedule.participants.length) ? displayedSchedule.participants : (passengers || []);
+  const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+  // computed participant / capacity values
+  // `totalParticipants` should represent trip capacity (`pax`),
+  // while `confirmedCount` is the number of participants on the selected schedule.
+  const totalParticipants = displayedTrip?.pax ?? '-';
+  const confirmedCount = passengerSample.length;
+  const capacity = displayedTrip?.pax ?? '-';
+  const availableSlots = (typeof displayedTrip?.pax === 'number')
+    ? Math.max(displayedTrip.pax - confirmedCount, 0)
+    : '-';
+
+  // pickup summary computed from trip pickup_points (with prices) and participants
+  const normalize = (s) => String(s || '').trim();
+  const pickupPointsArr = displayedTrip?.pickup_points || [];
+  const pickupPriceMap = {};
+  pickupPointsArr.forEach(pp => { pickupPriceMap[normalize(pp.location)] = pp.price ?? 0; });
+  const pickupCountsMap = {};
+  passengerSample.forEach(p => {
+    const loc = normalize(p.pickup || 'Other');
+    pickupCountsMap[loc] = (pickupCountsMap[loc] || 0) + 1;
   });
 
+  // Build ordered summary from trip pickup points first, then any extras from participants
+  const pickupSummaryMap = new Map();
+  pickupPointsArr.forEach(pp => {
+    const key = normalize(pp.location);
+    pickupSummaryMap.set(key, { loc: pp.location, count: pickupCountsMap[key] || 0, price: pickupPriceMap[key] || 0 });
+  });
+  Object.keys(pickupCountsMap).forEach(k => {
+    if (!pickupSummaryMap.has(k)) {
+      pickupSummaryMap.set(k, { loc: k, count: pickupCountsMap[k], price: pickupPriceMap[k] || 0 });
+    }
+  });
+  const pickupSummary = Array.from(pickupSummaryMap.values());
+
+  const totalPickupRevenue = pickupSummary.reduce((sum, p) => sum + (p.count * (p.price || 0)), 0);
+  const totalTripRevenue = confirmedCount * (displayedTrip?.price || 0);
+  const totalRevenue = totalTripRevenue + totalPickupRevenue;
+
+  const formatIDR = (v) => {
+    if (typeof v !== 'number') return '-';
+    return 'IDR ' + v.toLocaleString('id-ID');
+  };
+
+  const formatISODate = (iso) => {
+    if (!iso) return iso;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    const day = d.getDate();
+    const month = monthNames[d.getMonth()];
+    const year = d.getFullYear();
+    return `${day} ${month} ${year}`;
+  };
+  const formatDateRange = (text) => {
+    if (!text || typeof text !== 'string') return text;
+    const m = text.match(/(\d{4}-\d{2}-\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})/);
+    if (m) return `${formatISODate(m[1])} - ${formatISODate(m[2])}`;
+    return text;
+  };
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPassenger, setSelectedPassenger] = useState(null);
+  const [selectedDay, setSelectedDay] = useState(1);
 
   const openPassengerModal = (p) => {
     setSelectedPassenger(p);
@@ -35,7 +98,6 @@ export default function ParticipantPage() {
     setModalOpen(false);
   };
 
-  // helper to calculate age (years) from a DOB string
   const calculateAge = (dobStr) => {
     if (!dobStr) return '-';
     const d = new Date(dobStr);
@@ -47,7 +109,6 @@ export default function ParticipantPage() {
     return age;
   };
 
-  // export passenger list as CSV
   const downloadCSV = (rows) => {
     if (!rows || !rows.length) return;
     const headers = ['Username', 'Full Name', 'Gender', 'Age', 'Pick Up Point', 'Phone Number'];
@@ -80,8 +141,8 @@ export default function ParticipantPage() {
     height: '100vh',
     overflow: 'hidden',    
     fontFamily: fontFamily?.base || 'Inter, system-ui, -apple-system',
-    backgroundColor: colors.accent1,
-    backgroundImage: `url(${extendAgentBg})`,
+    backgroundImage: 'url("https://images.unsplash.com/photo-1584715625116-c1dbbfcf19be?q=80&w=2000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")',
+    backgroundColor: colors.bg,
     backgroundSize: 'cover',
     backgroundPosition: 'center top',
     backgroundRepeat: 'no-repeat',
@@ -103,20 +164,20 @@ export default function ParticipantPage() {
 
   const headerLeft = {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: spacing.md
   };
 
   const thumb = {
-    width: 88,
-    height: 88,
+    width: 100.8,
+    height: 100.8,
     borderRadius: radius.md,
     objectFit: 'cover',
     boxShadow: '0 6px 18px rgba(8,15,20,0.06)'
   };
 
   const titleBlock = { display: 'flex', flexDirection: 'column' };
-  const subtitle = { color: '#5b5b5b', fontSize: fontSize.sm, marginTop: 4 };
+  const subtitle = { color: '#5b5b5b', fontSize: fontSize.sm, marginTop: spacing.sm };
   const slotBox = { textAlign: 'right' };
   const slotBig = { fontSize: fontSize.xl, fontWeight: 800, color: colors.accent5 };
 
@@ -135,7 +196,6 @@ export default function ParticipantPage() {
   const passengerCard = { backgroundColor: colors.bg, color: colors.text, borderRadius: radius.md, padding: spacing.lg, boxShadow: '0 6px 18px rgba(8,15,20,0.06)' };
   const passengerTableStyle = { ...tableStyle, color: colors.text, wordBreak: 'break-word' };
   const gridStyle = { display: 'grid', gridTemplateColumns: '380px 1fr', gap: spacing.lg, marginTop: spacing.lg };
-  // Ensure passenger card stretches to match left column height and table scrolls
   passengerCard.display = 'flex';
   passengerCard.flexDirection = 'column';
   passengerCard.flex = 1;
@@ -144,25 +204,36 @@ export default function ParticipantPage() {
 
   return (
     <div style={page}>
-      <Navbar style={{ position: 'sticky', top: 0, left: 0, right: 0, zIndex: 60, backgroundColor: colors.bg }} />
+      <Navbar style={{ position: 'sticky', top: 0, left: 0, right: 0, zIndex: 60, backgroundColor: `${colors.bg}33`, backdropFilter: 'saturate(120%) blur(6px)', borderBottom: `1px solid ${colors.bg}20` }} />
       <main style={container}>
         <TripTabs />
 
         <div style={header}>
           <div style={headerLeft}>
-            <img src="/src/assets/images/tripexplorebg.png" alt="trip" style={thumb} />
+            <img src={displayedTrip?.image || (displayedTrip?.images && displayedTrip.images[0]) || '/src/assets/images/tripexplorebg.png'} alt="trip" style={thumb} />
             <div style={titleBlock}>
-              <h2 style={{ margin: 0, color: '#2b2b2b' }}>Labuan Bajo</h2>
-              <div style={subtitle}>2D1N · Island Exploration</div>
-              <div style={{ color: '#7a6a45', marginTop: 6, fontSize: fontSize.sm }}>1–2 February 2026 · East Nusa Tenggara, Indonesia</div>
+              <h2 style={{ margin: 0, color: '#2b2b2b' }}>{displayedTrip?.name || '—'}</h2>
+              <div style={subtitle}>{displayedTrip?.location?.state ? `${displayedTrip.location.state}` : ''}{(displayedTrip?.duration?.days || displayedTrip?.duration?.nights || displayedTrip?.type || displayedTrip?.destinationType) ? (displayedTrip?.location?.state ? ' · ' : '') : ''}{(displayedTrip?.duration?.days ? `${displayedTrip.duration.days}D` : '')}{(displayedTrip?.duration?.nights ? `${displayedTrip.duration.nights}N` : '')}{displayedTrip?.type || displayedTrip?.destinationType ? ` · ${displayedTrip.type || displayedTrip.destinationType}` : ''}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, paddingTop: spacing.sm }}>
+                {schedules.length > 0 && (
+                  <select
+                    value={selectedScheduleId || ''}
+                    onChange={(e) => setSelectedScheduleId(Number(e.target.value))}
+                    style={{ padding: `${spacing.xs} ${spacing.sm}`, borderRadius: radius.sm, border: `1px solid ${colors.accent5}20`, backgroundColor: colors.accent1, cursor: 'pointer' }}
+                  >
+                    {schedules.map(s => (
+                      <option key={s.id} value={s.id}>{formatDateRange(s.text)}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
             </div>
           </div>
           <div style={slotBox}>
             <div style={{ color: '#7a6a45', fontWeight: 600 }}>Available Slot</div>
-            <div style={slotBig}>8/15</div>
+            <div style={slotBig}>{availableSlots} / {displayedTrip?.pax ?? '-'}</div>
           </div>
         </div>
-        
         <Modal open={modalOpen} onClose={closePassengerModal} title={''}>
           {selectedPassenger && (
             <>
@@ -223,35 +294,35 @@ export default function ParticipantPage() {
             </>
           )}
         </Modal>
-        {/* Side-by-side layout: left summary (fixed width) and right passenger list (fills remaining width) */}
+          {/* Side-by-side layout: left summary (fixed width) and right passenger list (fills remaining width) */}
         <div style={{ display: 'flex', gap: spacing.lg, marginTop: spacing.lg, alignItems: 'stretch' }}>
           <div style={{ width: 380, flex: '0 0 380px', display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-            <div style={card}>
+            <div className="left-panel-fixed custom-scrollbar" style={card}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
                 <div style={smallCard}>
                   <h3 style={{ marginTop: 0, marginBottom: spacing.sm }}>Participant Summary</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                    <div>Total Participant : 15</div>
-                    <div>Confirmed : 8</div>
-                    <div>Available Slots : 7</div>
-                  </div>
+                      <div>Total Participant : {totalParticipants}</div>
+                      <div>Confirmed : {confirmedCount}</div>
+                      <div>Available Slots : {availableSlots}</div>
+                    </div>
                 </div>
 
                 <div style={smallCard}>
                   <h3 style={{ marginTop: 0, marginBottom: spacing.sm }}>Pick Up Point Summary</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs }}>
-                    <div>Orivia Agent Gambir, Jakarta : 6</div>
-                    <div>Orivia Agent Pasteur, Bandung : 1</div>
-                    <div>Soekarno Hatta Airport, Jakarta : 1</div>
-                  </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs }}>
+                      {pickupSummary.map(p => (
+                        <div key={p.loc}>{p.loc} : {p.count}</div>
+                      ))}
+                    </div>
                 </div>
 
                 <div style={smallCard}>
                   <h3 style={{ marginTop: 0, marginBottom: spacing.sm }}>Financial Summary</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs }}>
-                    <div>Total Trip Revenue : IDR 63,000,000</div>
-                    <div>Total Pickup Revenue : IDR 8,500,000</div>
-                    <div>Total Revenue : IDR 71,500,000</div>
+                    <div>Total Trip Revenue : {formatIDR(totalTripRevenue)}</div>
+                    <div>Total Pickup Revenue : {formatIDR(totalPickupRevenue)}</div>
+                    <div>Total Revenue : {formatIDR(totalRevenue)}</div>
                   </div>
                 </div>
               </div>
@@ -277,8 +348,8 @@ export default function ParticipantPage() {
                   <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                     <tr style={{ textAlign: 'center', borderBottom: `1px solid ${colors.accent5}22`, backgroundColor: colors.accent5 }}>
                       <th style={{ padding: spacing.sm, color: colors.bg, width: '11%', textAlign: 'center' }}>Username</th>
-                      <th style={{ padding: spacing.sm, color: colors.bg, width: '27%', textAlign: 'center' }}>Full Name</th>
-                      <th style={{ padding: spacing.sm, color: colors.bg, width: '8%', textAlign: 'center' }}>Gender</th>
+                      <th style={{ padding: spacing.sm, color: colors.bg, width: '25%', textAlign: 'center' }}>Full Name</th>
+                      <th style={{ padding: spacing.sm, color: colors.bg, width: '10%', textAlign: 'center' }}>Gender</th>
                       <th style={{ padding: spacing.sm, color: colors.bg, width: '7%', textAlign: 'center' }}>Age</th>
                       <th style={{ padding: spacing.sm, color: colors.bg, width: '28%', textAlign: 'center'}}>Pick Up Point</th>
                       <th style={{ padding: spacing.sm, color: colors.bg, width: '14%' }}>Phone Number</th>

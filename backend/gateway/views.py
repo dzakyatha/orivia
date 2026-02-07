@@ -17,38 +17,60 @@ class GatewayProxyView(APIView):
     throttle_classes = [UserRateThrottle]
 
     def dispatch(self, request, *args, **kwargs):
-        # Trigger DRF's Auth & Permission checks
+        # Initialize headers dict
+        self.headers = {}
+        
+        # Wrap the raw WSGIRequest into a DRF Request
+        # adds .query_params, .user, .auth, etc.
+        request = self.initialize_request(request, *args, **kwargs)
+        self.request = request
+        self.args = args
+        self.kwargs = kwargs
+        self.format_kwarg = self.get_format_suffix(**kwargs)
+
+        # Trigger DRF's Auth & Permission checks (including throttling)
         try:
             self.initial(request, *args, **kwargs)
         except Exception as exc:
-            return self.handle_exception(exc)
+            response = self.handle_exception(exc)
+            self.response = self.finalize_response(request, response, *args, **kwargs)
+            return self.response
 
         # Determine target service
         service_name = kwargs.get('service')
-        path = kwargs.get('path')
+        path = kwargs.get('path', '')
 
         # Cache Key
         # If User A and User B see the same trip list, serve the same cached response to both
-        cache_key = f"gateway:{service_name}:{path}:{request.META['QUERY_STRING']}"
+        query_string = request.META.get('QUERY_STRING', '')
+        cache_key = f"gateway:{service_name}:{path}:{query_string}"
         
-        # Only cache safe GET requests
+        # Only cache safe GET requests for opentrip service
         should_cache = (request.method == 'GET' and service_name == 'opentrip')
 
         if should_cache:
-            cached_response = cache.get(cache_key)
-            if cached_response:
-                return HttpResponse(
-                    cached_response['content'],
-                    status=cached_response['status'],
-                    content_type=cached_response['content_type']
-                )
+            try:
+                cached_response = cache.get(cache_key)
+                if cached_response:
+                    response = HttpResponse(
+                        cached_response['content'],
+                        status=cached_response['status'],
+                        content_type=cached_response['content_type']
+                    )
+                    self.response = self.finalize_response(request, response, *args, **kwargs)
+                    return self.response
+            except Exception:
+                # Cache failure - continue without cache
+                pass
         
         if service_name == 'planner':
             base_url = settings.TRAVEL_PLANNER_URL
         elif service_name == 'opentrip':
             base_url = settings.OPEN_TRIP_URL
         else:
-            return HttpResponse("Service not found", status=404)
+            response = HttpResponse("Service not found", status=404)
+            self.response = self.finalize_response(request, response, *args, **kwargs)
+            return self.response
 
         # Construct target URL
         # Strip the leading slash from path to avoid double slashes
@@ -57,37 +79,50 @@ class GatewayProxyView(APIView):
         # Forward the request
         try:
             # Forward JWT Authorization header
-            headers = {key: value for key, value in request.headers.items() 
-                      if key.lower() not in ['host', 'content-length']}
+            headers = {}
             
-            # Explicitly set Content-Type if provided
-            if request.content_type:
-                headers['Content-Type'] = request.content_type
+            # Get headers from original request
+            if hasattr(request, '_request') and hasattr(request._request, 'headers'):
+                headers = {key: value for key, value in request._request.headers.items() 
+                          if key.lower() not in ['host', 'content-length']}
+            
+            # Ensure Authorization header is set
+            if 'Authorization' not in headers and request.auth:
+                headers['Authorization'] = f"Bearer {str(request.auth)}"
 
-            response = requests.request(
+            microservice_response = requests.request(
                 method=request.method,
                 url=target_url,
                 headers=headers,
                 data=request.body,
-                params=request.GET,
+                params=request.query_params.dict(),
                 timeout=10
             )
 
-            if should_cache and response.status_code == 200:
-                cache_data = {
-                    'content': response.content,
-                    'status': response.status_code,
-                    'content_type': response.headers.get('Content-Type')
-                }
-                cache.set(cache_key, cache_data, timeout=60) # 60s cache
+            # Save to Cache if applicable
+            if should_cache and microservice_response.status_code == 200:
+                try:
+                    cache_data = {
+                        'content': microservice_response.content,
+                        'status': microservice_response.status_code,
+                        'content_type': microservice_response.headers.get('Content-Type')
+                    }
+                    cache.set(cache_key, cache_data, timeout=60) # 60s cache
+                except Exception:
+                    # Cache failure - continue without caching
+                    pass
 
             # Return microservice response to frontend
-            return HttpResponse(
-                response.content,
-                status=response.status_code,
-                content_type=response.headers.get('Content-Type')
+            response = HttpResponse(
+                microservice_response.content,
+                status=microservice_response.status_code,
+                content_type=microservice_response.headers.get('Content-Type')
             )
+            self.response = self.finalize_response(request, response, *args, **kwargs)
+            return self.response
 
         except requests.exceptions.RequestException as e:
             # Handle connection errors (Service Down)
-            return HttpResponse(f"Gateway Error: {str(e)}", status=503)
+            response = HttpResponse(f"Gateway Error: {str(e)}", status=503)
+            self.response = self.finalize_response(request, response, *args, **kwargs)
+            return self.response

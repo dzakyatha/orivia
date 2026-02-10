@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../../components/ui/Navbar.jsx';
 import Button from '../../components/ui/Button.jsx';
+import { ProfileCard } from '../../components/ui/Card.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPen, faEye, faClock, faCheck, faCalendarDays, faTag, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
 import profileImage from '../../assets/images/jeki.jpg';
@@ -13,10 +14,10 @@ import { colors, spacing, radius, fontSize, lineHeight, fontFamily, shadows, tra
 
 
 export default function CustomerProfilePage() {
-  const accent = '#1B7F8E';
-  const labelColor = '#5B6B3A';
-  const cardBg = 'rgba(245,241,232,0.86)';
-  const borderColor = 'rgba(27,127,142,0.2)';
+  const accent = colors.primary;
+  const labelColor = colors.accent5;
+  const cardBg = 'rgba(245,241,232,0.9)';
+  const borderColor = colors.accent3;
 
   const location = useLocation();
 
@@ -133,9 +134,9 @@ export default function CustomerProfilePage() {
     <div style={{ backgroundImage: "url('https://images.unsplash.com/photo-1517079810336-d39e72287591?q=80&w=1920&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')", backgroundSize: '100% auto', backgroundPosition: 'top center', backgroundRepeat: 'no-repeat' }}>
       <Navbar style={{ position: 'relative', zIndex: 30 }} />
 
-      <main style={{ position: 'relative', zIndex: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '100px 24px' }}>
+      <main style={{ position: 'relative', zIndex: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '50px 24px' }}>
         <div style={{ width: 1440, maxWidth: '100%', display: 'flex', gap: 40 }}>
-          <div style={{ flex: '0 0 44%', borderRadius: 20, background: cardBg, padding: 48, boxShadow: '0 14px 40px rgba(2,12,20,0.38)', border: `2px solid ${borderColor}`, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <ProfileCard cardBg={cardBg} borderColor={borderColor} alignCenter style={{ flex: '0 0 44%', padding: 48 }}>
             <div style={{ width: '100%', textAlign: 'center' }}>
               <h2 style={{ margin: 0, color: accent, fontFamily: 'Poppins, sans-serif', fontSize: 40, fontWeight: 800 }}>
                 {displayName}
@@ -146,12 +147,12 @@ export default function CustomerProfilePage() {
             <div style={{ marginTop: 44, width: 420, height: 420, borderRadius: 999, overflow: 'hidden', border: `10px solid ${accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>
               <img src={profileImage} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
-          </div>
+          </ProfileCard>
 
-          <div style={{ flex: '1 1 56%', borderRadius: 20, background: cardBg, padding: 36, boxShadow: '0 14px 40px rgba(2,12,20,0.38)', border: `2px solid ${borderColor}` }}>
+          <ProfileCard cardBg={cardBg} borderColor={borderColor} style={{ flex: '1 1 56%', padding: 36 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <h3 style={{ margin: 0, color: accent, fontFamily: 'Poppins, sans-serif', fontSize: 32, fontWeight: 800 }}>Customer Info</h3>
-              <Button variant="btn2" style={{ background: accent, color: '#fff', borderRadius: 999, padding: '10px 16px', fontWeight: 800 }}>
+              <Button variant="btn1" style={{ background: accent, color: '#fff', borderRadius: 999, padding: '10px 16px', fontWeight: 800 }}>
                 <FontAwesomeIcon icon={faPen} style={{ marginRight: 10 }} /> Edit
               </Button>
             </div>
@@ -186,7 +187,7 @@ export default function CustomerProfilePage() {
                 })()
               }
             </div>
-          </div>
+          </ProfileCard>
         </div>
 
         {/* Latest Trip Section */}
@@ -219,12 +220,12 @@ export default function CustomerProfilePage() {
                         See Details
                       </Button>
                       {trip.status === 'Upcoming' ? (
-                        <Button variant="btn2" style={{ fontWeight: 500 }}>
+                        <Button variant="btn3" style={{ fontWeight: 500 }}>
                           <FontAwesomeIcon icon={faClock} style={{ marginRight: 5 }} />
                           {trip.status}
                         </Button>
                       ) : (
-                        <Button variant="btn3" style={{fontWeight: 500 }}>
+                        <Button variant="btn2" style={{fontWeight: 500 }}>
                           <FontAwesomeIcon icon={faCheck} style={{ marginRight: 5 }} />
                           {trip.status}
                         </Button>

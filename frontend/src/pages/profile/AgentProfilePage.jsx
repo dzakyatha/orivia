@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../../components/ui/Navbar.jsx';
 import Button from '../../components/ui/Button.jsx';
+import { ProfileCard } from '../../components/ui/Card.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPen } from '@fortawesome/free-solid-svg-icons';
 import profileImage from '../../assets/images/jeki.jpg';
@@ -11,10 +12,10 @@ import { colors, spacing, radius, fontSize, lineHeight, fontFamily, shadows, tra
 
 
 export default function AgentProfilePage() {
-  const accent = '#BF4A24';
-  const labelColor = '#5B6B3A';
-  const cardBg = 'rgba(245,241,232,0.86)';
-  const borderColor = 'rgba(181,110,53,0.45)';
+  const accent = colors.primary;
+  const labelColor = colors.accent5;
+  const cardBg = 'rgba(245,241,232,0.9)';
+  const borderColor = colors.accent3;
 
   const location = useLocation();
 
@@ -152,13 +153,13 @@ export default function AgentProfilePage() {
   ];
 
   return (
-    <div style={{ backgroundImage: "url('https://images.unsplash.com/photo-1517079810336-d39e72287591?q=80&w=1920&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')", height: '100vh', backgroundSize: '100% auto', backgroundPosition: 'top center', backgroundRepeat: 'no-repeat' }}>
+    <div style={{ height: '100vh', overflow: 'hidden', backgroundImage: "url('https://images.unsplash.com/photo-1517079810336-d39e72287591?q=80&w=1920&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')", backgroundSize: '100% auto', backgroundPosition: 'top center', backgroundRepeat: 'no-repeat' }}>
       <Navbar style={{ position: 'relative', zIndex: 30 }} />
 
-      <main style={{ position: 'relative', zIndex: 20, display: 'flex', justifyContent: 'center', padding: '100px 24px' }}>
+      <main style={{ position: 'relative', zIndex: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '50px 24px 24px', height: '100%', overflow: 'hidden' }}>
         <div style={{ width: 1440, maxWidth: '100%', display: 'flex', gap: 40 }}>
           {/* Left: Profile Summary */}
-          <div style={{ flex: '0 0 44%', borderRadius: 20, background: cardBg, padding: 48, boxShadow: '0 14px 40px rgba(2,12,20,0.38)', border: `2px solid ${borderColor}`, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <ProfileCard cardBg={cardBg} borderColor={borderColor} alignCenter style={{ flex: '0 0 44%', padding: 48 }}>
             <div style={{ width: '100%', textAlign: 'center' }}>
               <h2 style={{ margin: 0, color: accent, fontFamily: 'Poppins, sans-serif', fontSize: 40, fontWeight: 800 }}>
                 {displayName}
@@ -169,10 +170,10 @@ export default function AgentProfilePage() {
             <div style={{ marginTop: 44, width: 420, height: 420, borderRadius: 999, overflow: 'hidden', border: `10px solid ${accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>
               <img src={profileImage} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
-          </div>
+          </ProfileCard>
 
           {/* Right: Bio & Others Detail */}
-          <div style={{ flex: '1 1 56%', borderRadius: 20, background: cardBg, padding: 36, boxShadow: '0 14px 40px rgba(2,12,20,0.38)', border: `2px solid ${borderColor}` }}>
+          <ProfileCard cardBg={cardBg} borderColor={borderColor} style={{ flex: '1 1 56%', padding: 36 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <h3 style={{ margin: 0, color: accent, fontFamily: 'Poppins, sans-serif', fontSize: 32, fontWeight: 800 }}>Bio & Others Detail</h3>
               <Button variant="btn2" style={{ background: accent, color: '#fff', borderRadius: 999, padding: '10px 16px', fontWeight: 800 }}>
@@ -210,7 +211,7 @@ export default function AgentProfilePage() {
                 })()
               }
             </div>
-          </div>
+          </ProfileCard>
         </div>
       </main>
     </div>

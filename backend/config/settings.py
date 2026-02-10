@@ -80,6 +80,7 @@ INSTALLED_APPS = [
 
     # Local apps
     'users',
+    'gateway',
 ]
 
 # Site ID for django-allauth
@@ -192,20 +193,24 @@ REST_AUTH = {
     'JWT_AUTH_COOKIE': 'orivia-auth',
     'JWT_AUTH_REFRESH_COOKIE': 'orivia-refresh',
     'USER_DETAILS_SERIALIZER': 'users.serializers.CustomUserSerializer',
-    'REGISTER_SERIALIZER': 'users.serializers.CustomRegisterSerializer',  # Add this
+    'REGISTER_SERIALIZER': 'users.serializers.CustomRegisterSerializer',
     'JWT_AUTH_HTTPONLY': True,
     'JWT_AUTH_SECURE': not DEBUG,
     'JWT_AUTH_SAMESITE': 'Lax',
+    'LOGIN_SERIALIZER': 'dj_rest_auth.serializers.LoginSerializer',
 }
 
-# AllAuth Configuration
-ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+# Django Allauth Configuration
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 
-# New django-allauth configuration
-ACCOUNT_LOGIN_METHODS = {'email'}
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
+# Authentication Backends
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
 
 # JWT Settings (SimpleJWT)
 SIMPLE_JWT = {
@@ -285,3 +290,7 @@ if LOGGING_ENABLED:
     }
     LOGGING['loggers']['users']['handlers'].append('file')
     LOGGING['loggers']['django.security']['handlers'].append('file')
+
+# Microservices URL
+TRAVEL_PLANNER_URL = config('TRAVEL_PLANNER_URL', default='http://localhost:8001') # localhost for development
+OPEN_TRIP_URL = config('OPEN_TRIP_URL', default='http://localhost:8002')

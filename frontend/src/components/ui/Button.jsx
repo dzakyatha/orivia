@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   colors,
   spacing,
@@ -65,11 +65,12 @@ const variants = {
 
   primary: {
     ...baseStyle,
-    display: 'flex',
-    width: '412px',
-    height: '49px',
+    display: 'inline-flex',
+    gap: '8px',
+    width: 'auto',
+    height: 'auto',
     padding: '10px 20px',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     borderRadius: '10px',
     border: '1px solid rgba(255, 255, 255, 0.2)',
@@ -78,7 +79,8 @@ const variants = {
       ${colors.accent5} 28.08%,
       ${colors.accent4} 97.67%
     )`,
-    fontSize: fontSize.base,
+    fontSize: fontSize.sm,
+    boxSizing: 'border-box',
   },
 
   btn1: {
@@ -143,13 +145,41 @@ const variants = {
 /* COMPONENT */
 /* ========================= */
 
-const Button = ({ variant = 'primary', style = {}, children, ...props }) => {
+const Button = ({ variant = 'primary', style = {}, children, onMouseOver, onMouseOut, onMouseEnter, onMouseLeave, ...props }) => {
+  const [hover, setHover] = useState(false);
+
+  const baseStyle = {
+    ...variants[variant],
+    ...style,
+  };
+
+  const hoverStyle = (variant === 'primary' && hover) ? {
+    background: colors.accent5,
+    backgroundImage: 'none',
+    color: colors.bg,
+    transition: 'none',
+  } : {};
+
+  const handleMouseEnter = (e) => {
+    setHover(true);
+    if (typeof onMouseEnter === 'function') onMouseEnter(e);
+    if (typeof onMouseOver === 'function') onMouseOver(e);
+  };
+
+  const handleMouseLeave = (e) => {
+    setHover(false);
+    if (typeof onMouseLeave === 'function') onMouseLeave(e);
+    if (typeof onMouseOut === 'function') onMouseOut(e);
+  };
+
   return (
     <button
       style={{
-        ...variants[variant],
-        ...style,
+        ...baseStyle,
+        ...hoverStyle,
       }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       {...props}
     >
       {children}

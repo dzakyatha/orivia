@@ -10,7 +10,12 @@ import CustomerPage from './pages/home/CustomerPage.jsx';
 import AgentProfilePage from './pages/profile/AgentProfilePage.jsx';
 import CustomerProfilePage from './pages/profile/CustomerProfilePage.jsx';
 import AgentTripPage from './pages/trip/AgentPage.jsx';
+import NewTripPage from './pages/trip/NewTripPage.jsx';
+import TripEditPage from './pages/trip/TripEditPage.jsx';
+import ParticipantPage from './pages/trip/ParticipantPage.jsx';
 import CustomerExplorePage from './pages/explore/CustomerPage.jsx';
+import CustomerBookingPage from './pages/explore/BookingPage.jsx';
+import CheckoutPage from './pages/explore/CheckoutPage.jsx';
 
 const App = () => {
   return (
@@ -26,7 +31,13 @@ const App = () => {
         <Route path="/profile/agent" element={<AgentProfilePage />} />
         <Route path="/profile/customer" element={<CustomerProfilePage />} />
         <Route path="/trip/agent" element={<AgentTripPage />} />
+        <Route path="/trip/new" element={<NewTripPage />} />
+        <Route path="/trip/edit" element={<TripEditPage />} />
+        <Route path="/trip/participant" element={<ParticipantPage />} />
         <Route path="/explore/customer" element={<CustomerExplorePage />} />
+        <Route path="/explore/booking" element={<CustomerBookingPage />} />
+        <Route path="/explore/booking/:id" element={<CustomerBookingPage />} />
+        <Route path="/explore/booking/checkout/*" element={<CheckoutPage />} />
       </Routes>
     </Router>
   );

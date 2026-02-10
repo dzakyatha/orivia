@@ -119,9 +119,9 @@ export default function CustomerProfilePage() {
 
   const infoRows = [
     ['Joined Since', joinedDate ? formatDateIndo(joinedDate) : '—'],
-    ['Email', localUser?.email || 'customer@example.com'],
+    ['Email', userEmail || 'customer@example.com'],
     ['Phone Number', localUser?.phone_number || localUser?.phone || '0812345678910'],
-    ['Date of Birthday', formatDateIndo(localUser?.date_of_birth || localUser?.birth_date) || '—'],
+    ['Date of Birth', formatDateIndo(localUser?.date_of_birth || localUser?.birth_date) || '—'],
     ['Gender', localUser?.gender || '—'],
     ['District / Area', localUser?.district || localUser?.area || '—'],
     ['City / Regency', localUser?.city || localUser?.regency || '—'],
@@ -133,31 +133,36 @@ export default function CustomerProfilePage() {
   return (
     <div style={{ backgroundImage: "url('https://images.unsplash.com/photo-1517079810336-d39e72287591?q=80&w=1920&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')", backgroundSize: '100% auto', backgroundPosition: 'top center', backgroundRepeat: 'no-repeat' }}>
       <Navbar style={{ position: 'relative', zIndex: 30 }} />
+      {loading && (
+        <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 40, background: 'rgba(0,0,0,0.2)' }}>
+          <div style={{ padding: spacing.sm, background: colors.bg, borderRadius: radius.md, boxShadow: shadows.md, fontWeight: 700 }}>Loading...</div>
+        </div>
+      )}
 
-      <main style={{ position: 'relative', zIndex: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '50px 24px' }}>
-        <div style={{ width: 1440, maxWidth: '100%', display: 'flex', gap: 40 }}>
-          <ProfileCard cardBg={cardBg} borderColor={borderColor} alignCenter style={{ flex: '0 0 44%', padding: 48 }}>
+      <main style={{ position: 'relative', zIndex: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: `${spacing['3xl']} ${spacing.lg} ${spacing.lg}`, height: '100%', overflow: 'hidden' }}>
+        <div style={{ width: 1440, maxWidth: '100%', display: 'flex', gap: spacing['2xl'] }}>
+          <ProfileCard cardBg={cardBg} borderColor={borderColor} alignCenter style={{ flex: '0 0 44%', padding: spacing['3xl'] }}>
             <div style={{ width: '100%', textAlign: 'center' }}>
-              <h2 style={{ margin: 0, color: accent, fontFamily: 'Poppins, sans-serif', fontSize: 40, fontWeight: 800 }}>
+              <h2 style={{ margin: 0, color: accent, fontFamily: fontFamily.base, fontSize: fontSize['3xl'], fontWeight: 800 }}>
                 {displayName}
               </h2>
-              <div style={{ marginTop: 10, color: '#7b7b7b', fontFamily: 'Lora, serif', fontSize: 16 }}>@customer</div>
+              <div style={{ marginTop: spacing.sm, color: colors.textLight, fontFamily: fontFamily.base, fontSize: fontSize.base }}>@customer</div>
             </div>
 
-            <div style={{ marginTop: 44, width: 420, height: 420, borderRadius: 999, overflow: 'hidden', border: `10px solid ${accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>
+            <div style={{ marginTop: spacing['2xl'], width: 420, height: 420, borderRadius: 999, overflow: 'hidden', border: `10px solid ${accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: colors.bg }}>
               <img src={profileImage} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
           </ProfileCard>
 
-          <ProfileCard cardBg={cardBg} borderColor={borderColor} style={{ flex: '1 1 56%', padding: 36 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, color: accent, fontFamily: 'Poppins, sans-serif', fontSize: 32, fontWeight: 800 }}>Customer Info</h3>
-              <Button variant="btn1" style={{ background: accent, color: '#fff', borderRadius: 999, padding: '10px 16px', fontWeight: 800 }}>
+          <ProfileCard cardBg={cardBg} borderColor={borderColor} style={{ flex: '1 1 56%', padding: spacing['2xl'] }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
+              <h3 style={{ margin: 0, color: accent, fontFamily: fontFamily.base, fontSize: fontSize['3xl'], fontWeight: 800 }}>Bio & Others Detail</h3>
+              <Button variant="btn2" style={{ background: accent, color: '#fff', borderRadius: 999, padding: '10px 16px', fontWeight: 800 }}>
                 <FontAwesomeIcon icon={faPen} style={{ marginRight: 10 }} /> Edit
               </Button>
             </div>
 
-            <div style={{ marginTop: 8, borderTop: '1px solid rgba(0,0,0,0.06)', display: 'flex', gap: 28 }}>
+            <div style={{ marginTop: spacing.sm, borderTop: '1px solid rgba(0,0,0,0.06)', display: 'flex', gap: spacing.xl }}>
               {
                 (() => {
                   const mid = Math.ceil(infoRows.length / 2);
@@ -167,18 +172,18 @@ export default function CustomerProfilePage() {
                     <>
                       <div style={{ flex: 1 }}>
                         {left.map(([label, value], idx) => (
-                          <div key={label} style={{ padding: '18px 8px', borderBottom: idx < left.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
-                            <div style={{ color: labelColor, fontFamily: 'Poppins, sans-serif', fontSize: 16, fontWeight: 800 }}>{label}</div>
-                            <div style={{ marginTop: 8, color: '#123032', fontFamily: 'Lora, serif', fontSize: 18 }}>{value}</div>
+                          <div key={label} style={{ padding: `${spacing.md} ${spacing.sm}`, borderBottom: idx < left.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
+                            <div style={{ color: labelColor, fontFamily: fontFamily.base, fontSize: fontSize.lg, fontWeight: 800 }}>{label}</div>
+                            <div style={{ marginTop: spacing.xs, color: colors.accent5, fontFamily: fontFamily.base, fontSize: fontSize.base }}>{value}</div>
                           </div>
                         ))}
                       </div>
 
                       <div style={{ flex: 1 }}>
                         {right.map(([label, value], idx) => (
-                          <div key={label} style={{ padding: '18px 8px', borderBottom: idx < right.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
-                            <div style={{ color: labelColor, fontFamily: 'Poppins, sans-serif', fontSize: 16, fontWeight: 800 }}>{label}</div>
-                            <div style={{ marginTop: 8, color: colors.accent5, fontFamily: 'Lora, serif', fontSize: 18 }}>{value}</div>
+                          <div key={label} style={{ padding: `${spacing.md} ${spacing.sm}`, borderBottom: idx < right.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
+                            <div style={{ color: labelColor, fontFamily: fontFamily.base, fontSize: fontSize.lg, fontWeight: 800 }}>{label}</div>
+                            <div style={{ marginTop: spacing.xs, color: colors.accent5, fontFamily: fontFamily.base, fontSize: fontSize.base }}>{value}</div>
                           </div>
                         ))}
                       </div>

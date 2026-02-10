@@ -26,6 +26,9 @@ const globalStyles = `
     line-height: 1.5;
     font-size: 1rem;
     overflow-x: hidden;
+    /* hide the browser page scrollbar while allowing inner scrollable areas */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE 10+ */
   }
 
   #root {
@@ -84,21 +87,28 @@ const globalStyles = `
     outline: none;
   }
 
-  ::-webkit-scrollbar {
+  /* Hide default webkit scrollbars (page) */
+  html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  /* Provide thin custom scrollbar for other scrollable elements if needed */
+  .custom-scroll ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
 
-  ::-webkit-scrollbar-track {
+  .custom-scroll ::-webkit-scrollbar-track {
     background: #f1f1f1;
   }
 
-  ::-webkit-scrollbar-thumb {
+  .custom-scroll ::-webkit-scrollbar-thumb {
     background: #3E5626;
     border-radius: 4px;
   }
 
-  ::-webkit-scrollbar-thumb:hover {
+  .custom-scroll ::-webkit-scrollbar-thumb:hover {
     background: #AB2A02;
   }
 

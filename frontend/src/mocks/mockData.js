@@ -7,6 +7,68 @@ export const DESTINATION_TYPES = [
   'Other'
 ];
 
+// Profile Dummy Data
+export const dummyAgentProfile = {
+  name: 'Dzaky Atha Fadhilah',
+  username: 'dzakyatha_agent',
+  email: 'jek@gmail.com',
+  phone: '+62 812-3456-7891',
+  dateOfBirth: '2005-03-07',
+  gender: 'Male',
+  district: 'Jatinangor',
+  city: 'Sumedang',
+  province: 'West Java',
+  nationality: 'Indonesia',
+  language: 'Bahasa Indonesia, English',
+  joinedDate: '2024-01-15',
+};
+
+export const dummyCustomerProfile = {
+  name: 'Nakeisha Valya Shakila',
+  username: 'nakei_traveler',
+  email: 'nakei@gmail.com',
+  phone: '+62 856-7890-1234',
+  dateOfBirth: '2006-06-29',
+  gender: 'Female',
+  district: 'Senayan',
+  city: 'Jakarta Selatan',
+  province: 'DKI Jakarta',
+  nationality: 'Indonesia',
+  language: 'Bahasa Indonesia, English',
+  joinedDate: '2024-06-20',
+};
+
+// Latest Trip Data for Customer Profile
+export const customerLatestTrips = [
+  { 
+    id: 1, 
+    title: '3D2N - Komodo Island Adventure', 
+    location: 'East Nusa Tenggara, Indonesia', 
+    date: '15-17 March 2026', 
+    price: 'Rp4.575.000 / 2pax', 
+    tag: 'Island Exploration', 
+    status: 'Upcoming' 
+  },
+  { 
+    id: 2, 
+    title: '4D3N - Raja Ampat Diving', 
+    location: 'West Papua, Indonesia', 
+    date: '20-23 January 2026', 
+    price: 'Rp8.200.000 / 2pax', 
+    tag: 'Marine Tourism', 
+    status: 'Completed' 
+  },
+  { 
+    id: 3, 
+    title: '2D1N - Bromo Sunrise Trek', 
+    location: 'East Java, Indonesia', 
+    date: '05-06 January 2026', 
+    price: 'Rp1.850.000 / 2pax', 
+    tag: 'Mountain Hiking', 
+    status: 'Completed' 
+  },
+];
+
 // Trip Master Data (static information shared across all schedules)
 export const trips = [
   {

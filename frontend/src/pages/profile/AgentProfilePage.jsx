@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button.jsx';
 import { ProfileCard } from '../../components/ui/Card.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPen } from '@fortawesome/free-solid-svg-icons';
+import { dummyAgentProfile } from '../../mocks/mockData.js';
 import profileImage from '../../assets/images/jeki.jpg';
 import bottomImage from '../../assets/images/landingpage2.png';
 import { colors, spacing, radius, fontSize, lineHeight, fontFamily, shadows, transitions } from '../../styles/variables.jsx';
@@ -109,12 +110,13 @@ export default function AgentProfilePage() {
     }
   }
 
-  const userEmail = localUser?.email || googleData?.email;
+  const userEmail = localUser?.email || googleData?.email || dummyAgentProfile.email;
   const displayName = googleData?.name || 
                      localUser?.first_name || 
                      localUser?.name || 
                      extractUsernameFromEmail(userEmail) || 
-                     'Dzaky Atha';
+                     dummyAgentProfile.name;
+  const username = localUser?.username || extractUsernameFromEmail(userEmail) || dummyAgentProfile.username;
 
   function formatDateIndo(dateStr) {
     if (!dateStr) return '—';
@@ -137,20 +139,21 @@ export default function AgentProfilePage() {
                     localUser?.profile?.created_at ||
                     profileDetail?.created_at ||
                     localUser?.profile?.createdAt ||
-                    localUser?.DATE_JOINED;
-  const birthDate = localUser?.date_of_birth || localUser?.birth_date;
+                    localUser?.DATE_JOINED ||
+                    dummyAgentProfile.joinedDate;
+  const birthDate = localUser?.date_of_birth || localUser?.birth_date || dummyAgentProfile.dateOfBirth;
 
   const infoRows = [
-    ['Joined Since', joinedDate ? formatDateIndo(joinedDate) : '—'],
-    ['Email', userEmail || 'dzakyatha8@gmail.com'],
-    ['Phone Number', localUser?.phone_number || localUser?.phone || '0812345678910'],
-    ['Date of Birth', birthDate ? formatDateIndo(birthDate) : '07 Maret 2005'],
-    ['Gender', localUser?.gender || 'Male'],
-    ['District / Area', localUser?.district || localUser?.area || 'Jatinangor'],
-    ['City / Regency', localUser?.city || localUser?.regency || 'Sumedang'],
-    ['Province / State', localUser?.province || localUser?.state || 'West Java'],
-    ['Nationality', localUser?.nationality || 'Indonesia'],
-    ['Language preference', localUser?.language_preference || 'Bahasa Indonesia'],
+    ['Joined Since', joinedDate ? formatDateIndo(joinedDate) : formatDateIndo(dummyAgentProfile.joinedDate)],
+    ['Email', userEmail],
+    ['Phone Number', localUser?.phone_number || localUser?.phone || dummyAgentProfile.phone],
+    ['Date of Birth', birthDate ? formatDateIndo(birthDate) : formatDateIndo(dummyAgentProfile.dateOfBirth)],
+    ['Gender', localUser?.gender || dummyAgentProfile.gender],
+    ['District / Area', localUser?.district || localUser?.area || dummyAgentProfile.district],
+    ['City / Regency', localUser?.city || localUser?.regency || dummyAgentProfile.city],
+    ['Province / State', localUser?.province || localUser?.state || dummyAgentProfile.province],
+    ['Nationality', localUser?.nationality || dummyAgentProfile.nationality],
+    ['Language preference', localUser?.language_preference || dummyAgentProfile.language],
   ];
 
   return (
@@ -170,7 +173,7 @@ export default function AgentProfilePage() {
               <h2 style={{ margin: 0, color: accent, fontFamily: fontFamily.base, fontSize: fontSize['3xl'], fontWeight: 800 }}>
                 {displayName}
               </h2>
-              <div style={{ marginTop: spacing.sm, color: colors.textLight, fontFamily: fontFamily.base, fontSize: fontSize.base }}>@jekiiiii123</div>
+              <div style={{ marginTop: spacing.sm, color: colors.textLight, fontFamily: fontFamily.base, fontSize: fontSize.base }}>@{username}</div>
             </div>
 
             <div style={{ marginTop: spacing['2xl'], width: 420, height: 420, borderRadius: 999, overflow: 'hidden', border: `10px solid ${accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: colors.bg }}>

@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button.jsx';
 import { ProfileCard } from '../../components/ui/Card.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPen, faEye, faClock, faCheck, faCalendarDays, faTag, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
+import { dummyCustomerProfile, customerLatestTrips } from '../../mocks/mockData.js';
 import profileImage from '../../assets/images/jeki.jpg';
 import tripThumb1 from '../../assets/images/landingpage2.png';
 import tripThumb2 from '../../assets/images/landingpage2.png';
@@ -104,8 +105,9 @@ export default function CustomerProfilePage() {
     try { return email.split('@')[0]; } catch (e) { return null; }
   }
 
-  const userEmail = localUser?.email || googleData?.email;
-  const displayName = googleData?.name || localUser?.first_name || localUser?.name || extractUsernameFromEmail(userEmail) || 'Customer';
+  const userEmail = localUser?.email || googleData?.email || dummyCustomerProfile.email;
+  const displayName = googleData?.name || localUser?.first_name || localUser?.name || extractUsernameFromEmail(userEmail) || dummyCustomerProfile.name;
+  const username = localUser?.username || extractUsernameFromEmail(userEmail) || dummyCustomerProfile.username;
 
   function formatDateIndo(dateStr) {
     if (!dateStr) return '—';
@@ -115,19 +117,20 @@ export default function CustomerProfilePage() {
     } catch (e) { return dateStr; }
   }
 
-  const joinedDate = localUser?.date_joined || localUser?.dateJoined || localUser?.created_at || localUser?.createdAt || localUser?.profile?.created_at || profileDetail?.created_at || localUser?.profile?.createdAt || localUser?.DATE_JOINED;
+  const joinedDate = localUser?.date_joined || localUser?.dateJoined || localUser?.created_at || localUser?.createdAt || localUser?.profile?.created_at || profileDetail?.created_at || localUser?.profile?.createdAt || localUser?.DATE_JOINED || dummyCustomerProfile.joinedDate;
+  const birthDate = localUser?.date_of_birth || localUser?.birth_date || dummyCustomerProfile.dateOfBirth;
 
   const infoRows = [
-    ['Joined Since', joinedDate ? formatDateIndo(joinedDate) : '—'],
-    ['Email', userEmail || 'customer@example.com'],
-    ['Phone Number', localUser?.phone_number || localUser?.phone || '0812345678910'],
-    ['Date of Birth', formatDateIndo(localUser?.date_of_birth || localUser?.birth_date) || '—'],
-    ['Gender', localUser?.gender || '—'],
-    ['District / Area', localUser?.district || localUser?.area || '—'],
-    ['City / Regency', localUser?.city || localUser?.regency || '—'],
-    ['Province / State', localUser?.province || localUser?.state || '—'],
-    ['Nationality', localUser?.nationality || '—'],
-    ['Language preference', localUser?.language_preference || '—'],
+    ['Joined Since', joinedDate ? formatDateIndo(joinedDate) : formatDateIndo(dummyCustomerProfile.joinedDate)],
+    ['Email', userEmail],
+    ['Phone Number', localUser?.phone_number || localUser?.phone || dummyCustomerProfile.phone],
+    ['Date of Birth', birthDate ? formatDateIndo(birthDate) : formatDateIndo(dummyCustomerProfile.dateOfBirth)],
+    ['Gender', localUser?.gender || dummyCustomerProfile.gender],
+    ['District / Area', localUser?.district || localUser?.area || dummyCustomerProfile.district],
+    ['City / Regency', localUser?.city || localUser?.regency || dummyCustomerProfile.city],
+    ['Province / State', localUser?.province || localUser?.state || dummyCustomerProfile.province],
+    ['Nationality', localUser?.nationality || dummyCustomerProfile.nationality],
+    ['Language preference', localUser?.language_preference || dummyCustomerProfile.language],
   ];
 
   return (
@@ -146,7 +149,7 @@ export default function CustomerProfilePage() {
               <h2 style={{ margin: 0, color: accent, fontFamily: fontFamily.base, fontSize: fontSize['3xl'], fontWeight: 800 }}>
                 {displayName}
               </h2>
-              <div style={{ marginTop: spacing.sm, color: colors.textLight, fontFamily: fontFamily.base, fontSize: fontSize.base }}>@customer</div>
+              <div style={{ marginTop: spacing.sm, color: colors.textLight, fontFamily: fontFamily.base, fontSize: fontSize.base }}>@{username}</div>
             </div>
 
             <div style={{ marginTop: spacing['2xl'], width: 420, height: 420, borderRadius: 999, overflow: 'hidden', border: `10px solid ${accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: colors.bg }}>
@@ -200,17 +203,10 @@ export default function CustomerProfilePage() {
           <h2 style={{ color: '#fff', fontFamily: 'Poppins, sans-serif', fontSize: 28, margin: '8px 12px' }}>Latest Trip</h2>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {(
-              // sample data; in future replace with real API data
-              [
-                { id: 1, title: '2D1N - Labuan Bajo', location: 'East Nusa Tenggara, Indonesia', date: '02-05 January 2026', price: 'Rp4.700.000 / 2pax', tag: 'Island Exploration', img: tripThumb1, status: 'Upcoming' },
-                { id: 2, title: '3D2N - Rinjani', location: 'West Nusa Tenggara, Indonesia', date: '02-05 January 2026', price: 'Rp4.700.000 / 2pax', tag: 'Mountain Hiking', img: tripThumb2, status: 'Completed' },
-                { id: 3, title: '1D - Papandayan', location: 'West Java, Indonesia', date: '02-05 January 2026', price: 'Rp4.700.000 / 2pax', tag: 'Mountain Hiking', img: tripThumb3, status: 'Completed' },
-              ]
-            ).map(trip => (
+            {customerLatestTrips.map(trip => (
               <div key={trip.id} style={{ display: 'flex', alignItems: 'center', gap: 16, background: 'rgba(245,241,232,0.9)', padding: 18, borderRadius: 12, border: `2px solid ${borderColor}` }}>
                 <div style={{ width: 120, height: 80, borderRadius: 8, overflow: 'hidden', flex: '0 0 120px' }}>
-                  <img src={trip.img} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <img src={trip.id === 1 ? tripThumb1 : trip.id === 2 ? tripThumb2 : tripThumb3} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 </div>
 
                 <div style={{ flex: 1 }}>

@@ -54,6 +54,7 @@ export default function CustomerProfilePage() {
     nationality: '',
     language: ''
   });
+  const [errors, setErrors] = useState({});
 
   // Trip Detail Modal States
   const [showTripDetail, setShowTripDetail] = useState(false);
@@ -152,6 +153,13 @@ export default function CustomerProfilePage() {
 
   // Save Profile Changes
   const saveProfile = () => {
+    // Validate before saving
+    const validation = validateEditableProfile(editableProfile);
+    if (!validation.valid) {
+      setErrors(validation.errors);
+      return;
+    }
+
     // Here you can add API call to save the profile
     // For now, we'll just update localStorage
     const updatedUser = {
@@ -166,11 +174,35 @@ export default function CustomerProfilePage() {
       nationality: editableProfile.nationality,
       language_preference: editableProfile.language
     };
-    
+
     localStorage.setItem('user', JSON.stringify(updatedUser));
     setLocalUser(updatedUser);
     setShowEditModal(false);
+    setErrors({});
   };
+
+  function validateEditableProfile(profile) {
+    const e = {};
+    const name = (profile.name || '').trim();
+    const phone = (profile.phone || '').trim();
+    const dob = profile.dateOfBirth;
+
+    if (!name) e.name = 'Full name is required.';
+    // basic phone pattern: allow +, digits, spaces, dashes, parentheses; length check
+    const phonePattern = /^\+?[0-9\s\-().]{6,20}$/;
+    if (!phone) e.phone = 'Phone number is required.';
+    else if (!phonePattern.test(phone)) e.phone = 'Enter a valid phone number.';
+
+    if (dob) {
+      const d = new Date(dob);
+      const now = new Date();
+      if (isNaN(d.getTime())) e.dateOfBirth = 'Invalid date format.';
+      else if (d > now) e.dateOfBirth = 'Date of birth cannot be in the future.';
+    }
+
+    return { valid: Object.keys(e).length === 0, errors: e };
+  }
+  const isFormValid = validateEditableProfile(editableProfile).valid;
 
   // Open Trip Detail Modal
   const openTripDetail = (trip) => {
@@ -184,16 +216,54 @@ export default function CustomerProfilePage() {
 
   // Download Invoice Handler
   const downloadInvoice = (trip) => {
-    // Create a simple text content for the invoice
-    const invoiceContent = `
-ORIVIA TRAVEL INVOICE\n========================\n\nBooking ID: ${tripBookingDetails[trip.id]?.bookingId}\nTrip: ${trip.title}\nLocation: ${trip.location}\nDate: ${trip.date}\nPrice: ${trip.price}\nStatus: ${trip.status}\n\nCustomer Details:\nName: ${tripBookingDetails[trip.id]?.customerName}\nPhone: ${tripBookingDetails[trip.id]?.phoneNumber}\nGender: ${tripBookingDetails[trip.id]?.gender}\nNationality: ${tripBookingDetails[trip.id]?.nationality}\nDate of Birth: ${tripBookingDetails[trip.id]?.dateOfBirth}\n\nPickup Point: ${tripBookingDetails[trip.id]?.pickupPoint}\n\nNotes: ${tripBookingDetails[trip.id]?.notes}\n\nThank you for traveling with Orivia!\n    `;
+    // Warn user about personal data and allow excluding sensitive fields
+    const message = 'This invoice may include sensitive personal information (phone number, date of birth, nationality).\n\nClick OK to include all details in the downloaded invoice.\nClick Cancel to download an invoice with sensitive fields omitted.';
+    const includeSensitive = window.confirm(message);
+
+    const booking = tripBookingDetails[trip.id] || {};
+
+    const safeField = (value) => (value == null || value === '') ? '—' : String(value);
+
+    const lines = [];
+    lines.push('ORIVIA TRAVEL INVOICE');
+    lines.push('========================');
+    lines.push('');
+    lines.push(`Booking ID: ${safeField(booking.bookingId || '')}`);
+    lines.push(`Trip: ${safeField(trip.title)}`);
+    lines.push(`Location: ${safeField(trip.location)}`);
+    lines.push(`Date: ${safeField(trip.date)}`);
+    lines.push(`Price: ${safeField(trip.price)}`);
+    lines.push(`Status: ${safeField(trip.status)}`);
+    lines.push('');
+    lines.push('Customer Details:');
+    lines.push(`Name: ${safeField(booking.customerName || booking.customer || '')}`);
+    if (includeSensitive) {
+      lines.push(`Phone: ${safeField(booking.phoneNumber || booking.phone || '')}`);
+      lines.push(`Gender: ${safeField(booking.gender || '')}`);
+      lines.push(`Nationality: ${safeField(booking.nationality || '')}`);
+      lines.push(`Date of Birth: ${safeField(booking.dateOfBirth || booking.dob || '')}`);
+    } else {
+      lines.push('Phone: [redacted]');
+      lines.push('Gender: [redacted]');
+      lines.push('Nationality: [redacted]');
+      lines.push('Date of Birth: [redacted]');
+    }
+    lines.push('');
+    lines.push(`Pickup Point: ${includeSensitive ? safeField(booking.pickupPoint || booking.pickup || '') : '[redacted]'}`);
+    lines.push('');
+    lines.push(`Notes: ${includeSensitive ? safeField(booking.notes || '') : '[redacted]'}`);
+    lines.push('');
+    lines.push('Thank you for traveling with Orivia!');
+
+    const invoiceContent = lines.join('\n');
 
     // Create and download the file
     const blob = new Blob([invoiceContent], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Orivia-Invoice-${trip.title.replace(/\s+/g, '-')}-${trip.id}.txt`;
+    const safeTitle = String(trip.title || 'invoice').replace(/[^a-z0-9-_]/gi, '-');
+    a.download = `Orivia-Invoice-${safeTitle}-${trip.id}.txt`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -359,15 +429,23 @@ ORIVIA TRAVEL INVOICE\n========================\n\nBooking ID: ${tripBookingDeta
                   onChange={(e) => setEditableProfile({...editableProfile, name: e.target.value})} 
                   style={modalStyles.input} 
                 />
+                {errors.name && <div style={{ color: 'red', fontSize: 12, marginTop: 6 }}>{errors.name}</div>}
               </div>
               <div>
                 <label style={modalStyles.label}>Phone Number</label>
-                <input 
-                  type="text" 
-                  value={editableProfile.phone} 
-                  onChange={(e) => setEditableProfile({...editableProfile, phone: e.target.value})} 
-                  style={modalStyles.input} 
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  pattern="^[0-9+()\\s-]{7,20}$"
+                  value={editableProfile.phone}
+                  onChange={(e) => {
+                    const rawValue = e.target.value;
+                    const sanitizedValue = rawValue.replace(/[^0-9+()\\s-]/g, '');
+                    setEditableProfile({ ...editableProfile, phone: sanitizedValue });
+                  }}
+                  style={modalStyles.input}
                 />
+                {errors.phone && <div style={{ color: 'red', fontSize: 12, marginTop: 6 }}>{errors.phone}</div>}
               </div>
             </div>
 
@@ -380,6 +458,7 @@ ORIVIA TRAVEL INVOICE\n========================\n\nBooking ID: ${tripBookingDeta
                   onChange={(e) => setEditableProfile({...editableProfile, dateOfBirth: e.target.value})} 
                   style={modalStyles.input} 
                 />
+                {errors.dateOfBirth && <div style={{ color: 'red', fontSize: 12, marginTop: 6 }}>{errors.dateOfBirth}</div>}
               </div>
               <div>
                 <label style={modalStyles.label}>Gender</label>
@@ -390,7 +469,6 @@ ORIVIA TRAVEL INVOICE\n========================\n\nBooking ID: ${tripBookingDeta
                 >
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
-                  <option value="Other">Other</option>
                 </select>
               </div>
             </div>
@@ -453,7 +531,7 @@ ORIVIA TRAVEL INVOICE\n========================\n\nBooking ID: ${tripBookingDeta
             </div>
 
             <div style={modalStyles.buttonContainer}>
-              <Button variant="btn2" onClick={saveProfile} style={{ display: 'inline-flex', gap: spacing.xs, width: '155px' }}>
+              <Button variant="btn2" onClick={saveProfile} disabled={!isFormValid} style={{ display: 'inline-flex', gap: spacing.xs, width: '155px', opacity: isFormValid ? 1 : 0.5 }}>
                 <FontAwesomeIcon icon={faCheck} /> Save Changes
               </Button>
               <Button variant="btn3" onClick={() => setShowEditModal(false)} style={{ display: 'inline-flex', gap: spacing.xs }}>

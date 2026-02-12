@@ -53,6 +53,7 @@ export default function AgentProfilePage() {
     nationality: '',
     language: ''
   });
+  const [errors, setErrors] = useState({});
 
   // Fetch user data from API if not in localStorage
   useEffect(() => {
@@ -156,6 +157,13 @@ export default function AgentProfilePage() {
 
   // Save Profile Changes
   const saveProfile = () => {
+    // Validate before saving
+    const validation = validateEditableProfile(editableProfile);
+    if (!validation.valid) {
+      setErrors(validation.errors);
+      return;
+    }
+
     // Here you can add API call to save the profile
     // For now, we'll just update localStorage
     const updatedUser = {
@@ -174,7 +182,30 @@ export default function AgentProfilePage() {
     localStorage.setItem('user', JSON.stringify(updatedUser));
     setLocalUser(updatedUser);
     setShowEditModal(false);
+    setErrors({});
   };
+
+  function validateEditableProfile(profile) {
+    const e = {};
+    const name = (profile.name || '').trim();
+    const phone = (profile.phone || '').trim();
+    const dob = profile.dateOfBirth;
+
+    if (!name) e.name = 'Full name is required.';
+    const phonePattern = /^\+?[0-9\s\-().]{6,20}$/;
+    if (!phone) e.phone = 'Phone number is required.';
+    else if (!phonePattern.test(phone)) e.phone = 'Enter a valid phone number.';
+
+    if (dob) {
+      const d = new Date(dob);
+      const now = new Date();
+      if (isNaN(d.getTime())) e.dateOfBirth = 'Invalid date format.';
+      else if (d > now) e.dateOfBirth = 'Date of birth cannot be in the future.';
+    }
+
+    return { valid: Object.keys(e).length === 0, errors: e };
+  }
+  const isFormValid = validateEditableProfile(editableProfile).valid;
 
   function formatDateIndo(dateStr) {
     if (!dateStr) return '—';
@@ -293,15 +324,23 @@ export default function AgentProfilePage() {
                   onChange={(e) => setEditableProfile({...editableProfile, name: e.target.value})} 
                   style={modalStyles.input} 
                 />
+                {errors.name && <div style={{ color: 'red', fontSize: 12, marginTop: 6 }}>{errors.name}</div>}
               </div>
               <div>
                 <label style={modalStyles.label}>Phone Number</label>
-                <input 
-                  type="text" 
-                  value={editableProfile.phone} 
-                  onChange={(e) => setEditableProfile({...editableProfile, phone: e.target.value})} 
-                  style={modalStyles.input} 
-                />
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    pattern="^[0-9+()\\s-]{7,20}$"
+                    value={editableProfile.phone}
+                    onChange={(e) => {
+                      const rawValue = e.target.value;
+                      const sanitizedValue = rawValue.replace(/[^0-9+()\\s-]/g, '');
+                      setEditableProfile({ ...editableProfile, phone: sanitizedValue });
+                    }}
+                    style={modalStyles.input}
+                  />
+                {errors.phone && <div style={{ color: 'red', fontSize: 12, marginTop: 6 }}>{errors.phone}</div>}
               </div>
             </div>
 
@@ -314,6 +353,7 @@ export default function AgentProfilePage() {
                   onChange={(e) => setEditableProfile({...editableProfile, dateOfBirth: e.target.value})} 
                   style={modalStyles.input} 
                 />
+                {errors.dateOfBirth && <div style={{ color: 'red', fontSize: 12, marginTop: 6 }}>{errors.dateOfBirth}</div>}
               </div>
               <div>
                 <label style={modalStyles.label}>Gender</label>
@@ -324,7 +364,6 @@ export default function AgentProfilePage() {
                 >
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
-                  <option value="Other">Other</option>
                 </select>
               </div>
             </div>
@@ -387,7 +426,7 @@ export default function AgentProfilePage() {
             </div>
 
             <div style={modalStyles.buttonContainer}>
-              <Button variant="btn2" onClick={saveProfile} style={{ display: 'inline-flex', gap: spacing.xs, width: '155px' }}>
+              <Button variant="btn2" onClick={saveProfile} disabled={!isFormValid} style={{ display: 'inline-flex', gap: spacing.xs, width: '155px', opacity: isFormValid ? 1 : 0.5 }}>
                 <FontAwesomeIcon icon={faCheck} /> Save Changes
               </Button>
               <Button variant="btn3" onClick={() => setShowEditModal(false)} style={{ display: 'inline-flex', gap: spacing.xs }}>

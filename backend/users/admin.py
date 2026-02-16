@@ -36,10 +36,11 @@ class ProfileAdmin(admin.ModelAdmin):
     """
     Admin interface for Profile model
     """
-    list_display = ('user', 'phone_number', 'date_of_birth', 'gender', 'district', 'city', 'province', 'nationality', 'created_at')
-    search_fields = ('user__email', 'user__username', 'phone_number', 'district', 'city', 'province', 'nationality')
-    list_filter = ('gender', 'district', 'city', 'province', 'nationality', 'created_at')
+    list_display = ('get_username', 'get_email', 'get_full_name', 'avatar_url', 'phone_number', 'date_of_birth', 'gender', 'district', 'city', 'province', 'nationality', 'language_preference', 'created_at')
+    search_fields = ('user__email', 'user__username', 'user__first_name', 'phone_number', 'district', 'city', 'province', 'nationality')
+    list_filter = ('gender', 'district', 'city', 'province', 'nationality', 'language_preference', 'created_at')
     readonly_fields = ('created_at', 'updated_at')
+    list_select_related = ('user',)
     
     fieldsets = (
         (_('User'), {'fields': ('user',)}),
@@ -53,3 +54,18 @@ class ProfileAdmin(admin.ModelAdmin):
         }),
         (_('Metadata'), {'fields': ('created_at', 'updated_at')}),
     )
+    
+    def get_username(self, obj):
+        return obj.user.username
+    get_username.short_description = 'Username'
+    get_username.admin_order_field = 'user__username'
+    
+    def get_email(self, obj):
+        return obj.user.email
+    get_email.short_description = 'Email'
+    get_email.admin_order_field = 'user__email'
+    
+    def get_full_name(self, obj):
+        return obj.user.first_name or '-'
+    get_full_name.short_description = 'Full Name'
+    get_full_name.admin_order_field = 'user__first_name'

@@ -12,6 +12,20 @@ import {
   fontSize,
 } from '../../styles/variables.jsx';
 
+// Ensure white placeholder styles are available for inputs rendered by InputField
+if (typeof document !== 'undefined' && !document.getElementById('placeholder-white-styles')) {
+	const styleEl = document.createElement('style');
+	styleEl.id = 'placeholder-white-styles';
+	styleEl.innerHTML = `
+		.placeholder-white::placeholder { color: #ffffff !important; opacity: 1 !important; }
+		.placeholder-white::-webkit-input-placeholder { color: #ffffff !important; }
+		.placeholder-white::-moz-placeholder { color: #ffffff !important; opacity: 1 !important; }
+		.placeholder-white:-ms-input-placeholder { color: #ffffff !important; }
+		.placeholder-white:-moz-placeholder { color: #ffffff !important; opacity: 1 !important; }
+	`;
+	document.head.appendChild(styleEl);
+}
+
 const Card = ({ children, style = {}, ...props }) => {
   const cardStyle = {
     background: colors.bg,
@@ -491,9 +505,9 @@ export const InputField = ({ label, type = 'text', style = {}, ...props }) => {
 		<div>
 			{label && <label style={labelStyle}>{label}</label>}
 			{type === 'textarea' ? (
-				<textarea style={inputStyle} {...props} />
+				<textarea className="placeholder-white" style={inputStyle} {...props} />
 			) : (
-				<input type={type} style={inputStyle} {...props} />
+				<input className="placeholder-white" type={type} style={inputStyle} {...props} />
 			)}
 		</div>
 	);
@@ -657,6 +671,26 @@ export const TextLink = ({ children, onClick, style = {} }) => {
 
 export default Card;
 
+// ProfileCard: used for profile pages (summary / detail cards)
+export const ProfileCard = ({ children, style = {}, cardBg, borderColor, alignCenter = false, ...props }) => {
+  const profileStyle = {
+    background: cardBg || colors.bg,
+    borderRadius: radius.lg,
+    boxShadow: '0 14px 40px rgba(2,12,20,0.38)',
+    border: borderColor ? `2px solid ${borderColor}` : `2px solid ${colors.text}11`,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: alignCenter ? 'center' : 'stretch',
+    ...style,
+  };
+
+  return (
+    <div style={profileStyle} {...props}>
+      {children}
+    </div>
+  );
+};
+
 // Search Filters Card: Start Date / End Date / Location / Pax + Search/Clear
 export const SearchFiltersCard = ({
 	startDate,
@@ -762,6 +796,7 @@ export const SearchFiltersCard = ({
 					<div style={{ display: 'flex', alignItems: 'center', gap: spacing.xs }}>
 						<FontAwesomeIcon icon={faLocationDot} color={colors.bg} />
 						<input
+							className="placeholder-white"
 							type="text"
 							placeholder="Country or state"
 							value={location}
@@ -793,9 +828,11 @@ export const SearchFiltersCard = ({
 					<div style={{ display: 'flex', alignItems: 'center', gap: spacing.xs }}>
 						<FontAwesomeIcon icon={faUser} color={colors.bg} />
 						<input
+							className="placeholder-white"
 							type="number"
 							min={1}
 							step={1}
+							placeholder="1"
 							value={pax}
 							onChange={(e) => setPax(e.target.value)}
 							style={{

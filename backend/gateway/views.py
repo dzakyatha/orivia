@@ -65,21 +65,34 @@ class GatewayProxyView(APIView):
         
         if service_name == 'planner':
             base_url = settings.TRAVEL_PLANNER_URL
-        elif service_name == 'opentrip':
+            # Map external 'planner' to internal 'perencanaan'
+            internal_path = f"perencanaan/{path.lstrip('/')}"
+        elif service == 'opentrip':
             base_url = settings.OPEN_TRIP_URL
+            # Map external 'opentrip' to internal 'opentrip'
+            internal_path = f"opentrip/{path.lstrip('/')}"
         else:
             response = HttpResponse("Service not found", status=404)
             self.response = self.finalize_response(request, response, *args, **kwargs)
             return self.response
 
         # Construct target URL
-        # Strip the leading slash from path to avoid double slashes
-        target_url = f"{base_url}/{path.lstrip('/')}"
+        url = f"{base_url}/api/{internal_path}"
         
         # Forward the request
         try:
-            # Forward JWT Authorization header
-            headers = {}
+            # Forward headers, but strip security-sensitive ones
+            # Exclude host, content-length, and any user identity headers
+            excluded_headers = ['host', 'content-length', 'x-user-id', 'x-user-role']
+            headers = {
+                key: value for key, value in request.headers.items() 
+                if key.lower() not in excluded_headers
+            }
+            
+            # Always set user identity from authenticated server-side context
+            # This prevents header spoofing attacks
+            headers['X-User-ID'] = str(request.user.id)
+            headers['X-User-Role'] = request.user.role
             
             # Get headers from original request
             if hasattr(request, '_request') and hasattr(request._request, 'headers'):
@@ -123,6 +136,24 @@ class GatewayProxyView(APIView):
 
         except requests.exceptions.RequestException as e:
             # Handle connection errors (Service Down)
-            response = HttpResponse(f"Gateway Error: {str(e)}", status=503)
-            self.response = self.finalize_response(request, response, *args, **kwargs)
-            return self.response
+            return HttpResponse(f"Gateway Error: {str(e)}", status=503)
+
+    def get(self, request, service, path='', *args, **kwargs):
+        """Handle GET requests"""
+        return self._proxy_request(request, service, path)
+
+    def post(self, request, service, path='', *args, **kwargs):
+        """Handle POST requests"""
+        return self._proxy_request(request, service, path)
+
+    def put(self, request, service, path='', *args, **kwargs):
+        """Handle PUT requests"""
+        return self._proxy_request(request, service, path)
+
+    def patch(self, request, service, path='', *args, **kwargs):
+        """Handle PATCH requests"""
+        return self._proxy_request(request, service, path)
+
+    def delete(self, request, service, path='', *args, **kwargs):
+        """Handle DELETE requests"""
+        return self._proxy_request(request, service, path)

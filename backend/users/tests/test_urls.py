@@ -1,16 +1,16 @@
 import pytest
 from django.urls import reverse, resolve
-from users.views import GoogleLogin
+from users.views import GoogleAuth
 
 class TestAuthenticationURLs:
-    def test_google_login_url_resolves(self):
-        """Test Google login URL resolves to correct view"""
-        url = reverse('google_login')
-        assert resolve(url).func.view_class == GoogleLogin
+    def test_google_auth_url_resolves(self):
+        """Test Google auth URL resolves to correct view"""
+        url = reverse('google_auth')
+        assert resolve(url).func.view_class == GoogleAuth
     
-    def test_google_login_url_path(self):
-        """Test Google login URL path is correct"""
-        url = reverse('google_login')
+    def test_google_auth_url_path(self):
+        """Test Google auth URL path is correct"""
+        url = reverse('google_auth')
         assert url == '/api/auth/google/'
     
     def test_dj_rest_auth_urls_included(self):

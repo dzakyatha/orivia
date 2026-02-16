@@ -7,6 +7,131 @@ export const DESTINATION_TYPES = [
   'Other'
 ];
 
+// Profile Dummy Data
+export const dummyAgentProfile = {
+  name: 'Dzaky Atha Fadhilah',
+  username: 'dzakyatha_agent',
+  email: 'jek@gmail.com',
+  phone: '+62 812-3456-7891',
+  dateOfBirth: '2005-03-07',
+  gender: 'Male',
+  district: 'Jatinangor',
+  city: 'Sumedang',
+  province: 'West Java',
+  nationality: 'Indonesia',
+  language: 'Bahasa Indonesia, English',
+  joinedDate: '2024-01-15',
+};
+
+export const dummyCustomerProfile = {
+  name: 'Nakeisha Valya Shakila',
+  username: 'nakei_traveler',
+  email: 'nakei@gmail.com',
+  phone: '+62 856-7890-1234',
+  dateOfBirth: '2006-06-29',
+  gender: 'Female',
+  district: 'Senayan',
+  city: 'Jakarta Selatan',
+  province: 'DKI Jakarta',
+  nationality: 'Indonesia',
+  language: 'Bahasa Indonesia, English',
+  joinedDate: '2024-06-20',
+};
+
+// Latest Trip Data for Customer Profile
+export const customerLatestTrips = [
+  { 
+    id: 1, 
+    title: '3D2N - Komodo Island Adventure', 
+    location: 'East Nusa Tenggara, Indonesia', 
+    date: '15-17 March 2026', 
+    price: 'Rp4.575.000 / 2pax', 
+    tag: 'Island Exploration', 
+    status: 'Upcoming' 
+  },
+  { 
+    id: 2, 
+    title: '4D3N - Raja Ampat Diving', 
+    location: 'West Papua, Indonesia', 
+    date: '20-23 January 2026', 
+    price: 'Rp8.200.000 / 2pax', 
+    tag: 'Marine Tourism', 
+    status: 'Completed' 
+  },
+  { 
+    id: 3, 
+    title: '2D1N - Bromo Sunrise Trek', 
+    location: 'East Java, Indonesia', 
+    date: '05-06 January 2026', 
+    price: 'Rp1.850.000 / 2pax', 
+    tag: 'Mountain Hiking', 
+    status: 'Completed' 
+  },
+];
+
+// Detailed booking information for each trip
+export const tripBookingDetails = {
+  1: {
+    bookingId: '@nakeiiii123',
+    customerName: 'Nakeisha Valya',
+    phoneNumber: '081234568910',
+    gender: 'Female',
+    nationality: 'Indonesia',
+    dateOfBirth: '29 June 2006',
+    notes: 'I prefer a window seat during transportation if available, prefer a lower bunk for sleeping arrangements, and have food allergies to peanuts and shrimp.',
+    pickupPoint: 'Orivia Agent Pasteur, Bandung',
+    passengers: [
+      {
+        customerName: 'Nakeisha Valya',
+        phoneNumber: '081234568910',
+        gender: 'Female',
+        nationality: 'Indonesia',
+        dateOfBirth: '29 June 2006',
+        pickupPoint: 'Orivia Agent Pasteur, Bandung',
+        notes: 'I prefer a window seat during transportation if available. Allergic to peanuts and shrimp.'
+      },
+      {
+        customerName: 'Ardi Prasetyo',
+        phoneNumber: '081298765432',
+        gender: 'Male',
+        nationality: 'Indonesia',
+        dateOfBirth: '1995-11-21',
+        pickupPoint: 'Orivia Agent Pasteur, Bandung',
+        notes: 'Needs vegetarian meal option.'
+      },
+      {
+        customerName: 'Siti Rahma',
+        phoneNumber: '081377788899',
+        gender: 'Female',
+        nationality: 'Indonesia',
+        dateOfBirth: '1998-04-03',
+        pickupPoint: 'Orivia Agent Pasteur, Bandung',
+        notes: 'Prefer lower bunk and morning departure.'
+      }
+    ]
+  },
+  2: {
+    bookingId: '@nakeiiii124',
+    customerName: 'Nakeisha Valya',
+    phoneNumber: '081234568910',
+    gender: 'Female',
+    nationality: 'Indonesia',
+    dateOfBirth: '29 June 2006',
+    notes: 'Experienced diver with PADI Open Water certification. Prefer early morning dive sessions and vegetarian meal options.',
+    pickupPoint: 'Sorong Harbor'
+  },
+  3: {
+    bookingId: '@nakeiiii125',
+    customerName: 'Nakeisha Valya',
+    phoneNumber: '081234568910',
+    gender: 'Female',
+    nationality: 'Indonesia',
+    dateOfBirth: '29 June 2006',
+    notes: 'First time mountain hiking. Please provide extra guidance and safety equipment. Prefer moderate hiking pace.',
+    pickupPoint: 'Orivia Agent Malang, East Java'
+  }
+};
+
 // Trip Master Data (static information shared across all schedules)
 export const trips = [
   {

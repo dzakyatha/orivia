@@ -40,6 +40,7 @@ class ProfileAdmin(admin.ModelAdmin):
     search_fields = ('user__email', 'user__username', 'user__first_name', 'phone_number', 'district', 'city', 'province', 'nationality')
     list_filter = ('gender', 'district', 'city', 'province', 'nationality', 'language_preference', 'created_at')
     readonly_fields = ('created_at', 'updated_at')
+    list_select_related = ('user',)
     
     fieldsets = (
         (_('User'), {'fields': ('user',)}),

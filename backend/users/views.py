@@ -8,9 +8,11 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 import requests as http_requests
 import logging
-from .models import User, UserRole
+from .models import User, UserRole, Profile
+from .serializers import ProfileDetailSerializer, ProfileUpdateSerializer
 from allauth.socialaccount.models import SocialAccount, SocialApp
 from django.contrib.sites.models import Site
 
@@ -157,3 +159,38 @@ class GoogleRegisterComplete(APIView):
         except Exception as e:
             self.logger.exception('Exception during Google registration: %s', e)
             return Response({'error': f'Registration failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_profile(self, user):
+        profile, _created = Profile.objects.get_or_create(user=user)
+        return profile
+
+    def get(self, request):
+        profile = self._get_profile(request.user)
+        serializer = ProfileDetailSerializer(profile)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        profile = self._get_profile(request.user)
+        serializer = ProfileUpdateSerializer(
+            profile, data=request.data, partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            ProfileDetailSerializer(profile).data,
+            status=status.HTTP_200_OK,
+        )
+
+    def put(self, request):
+        profile = self._get_profile(request.user)
+        serializer = ProfileUpdateSerializer(profile, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            ProfileDetailSerializer(profile).data,
+            status=status.HTTP_200_OK,
+        )

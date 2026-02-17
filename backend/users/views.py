@@ -12,7 +12,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny  # Add AllowAny
 from .models import Profile, UserRole
 from .serializers import ProfileDetailSerializer, ProfileUpdateSerializer
 
@@ -63,6 +63,7 @@ def hash_email(email):
 
 class CustomLoginView(LoginView):
     """Custom login view with logging and proper HTTP status codes"""
+    permission_classes = [AllowAny]  # ✅ Add this line
     
     def post(self, request, *args, **kwargs):
         email = request.data.get('email', 'unknown')
@@ -116,6 +117,7 @@ class CustomLoginView(LoginView):
 
 class CustomRegisterView(RegisterView):
     """Custom registration view with logging"""
+    permission_classes = [AllowAny]  # ✅ Add this line
     
     def post(self, request, *args, **kwargs):
         email = request.data.get('email', 'unknown')
@@ -156,6 +158,7 @@ class CustomRegisterView(RegisterView):
 
 class GoogleAuth(SocialLoginView):
     """Step 1: Google OAuth authentication"""
+    permission_classes = [AllowAny]  # ✅ Add this line
     adapter_class = GoogleOAuth2Adapter
     callback_url = settings.GOOGLE_CALLBACK_URL  # e.g., "http://localhost:5173"
     client_class = OAuth2Client
@@ -163,7 +166,7 @@ class GoogleAuth(SocialLoginView):
 
 class GoogleRegisterComplete(APIView):
     """Step 2: Complete Google registration with role"""
-    permission_classes = []
+    permission_classes = [AllowAny]  # ✅ Change from [] to [AllowAny]
     authentication_classes = []
     
     def post(self, request):

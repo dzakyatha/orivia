@@ -256,30 +256,35 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {name} {funcName} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {message}',
+            'format': '{levelname} {asctime} {module} {message}',
             'style': '{',
         },
     },
     'handlers': {
         'console': {
-            'level': 'DEBUG',
             'class': 'logging.StreamHandler',
-            'formatter': 'simple',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': 'logs/debug.log',
+            'formatter': 'verbose',
         },
     },
     'loggers': {
         'users': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': False,
         },
+        'gateway': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',  # Set to DEBUG in development for detailed logs
+            'propagate': False,
+        },
         'django.security': {
-            'handlers': ['console'],
-            'level': 'WARNING',
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
             'propagate': False,
         },
     },

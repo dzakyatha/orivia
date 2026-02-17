@@ -1,10 +1,13 @@
 import requests
+import logging
 from django.conf import settings
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.throttling import UserRateThrottle
 from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
 
 class GatewayProxyView(APIView):
     """
@@ -84,18 +87,23 @@ class GatewayProxyView(APIView):
         # Construct target URL
         url = f"{base_url}/api/{internal_path}"
         
+        # Log request details (use DEBUG for PII/high-volume data)
+        logger.info(f"Gateway proxying {request.method} to service: {service}")
+        logger.debug(f"Target URL: {url}")
+        logger.debug(f"User ID: {request.user.id}, Role: {request.user.role}")
+        
         # Forward the request
         try:
             # Forward headers, but strip security-sensitive ones
-            # Exclude host, content-length, and any user identity headers
+            # Security: Never trust client-provided identity headers to prevent spoofing
             excluded_headers = ['host', 'content-length', 'x-user-id', 'x-user-role']
             headers = {
                 key: value for key, value in request.headers.items() 
                 if key.lower() not in excluded_headers
             }
             
-            # Always set user identity from authenticated server-side context
-            # This prevents header spoofing attacks
+            # Security: Always inject user identity from authenticated server-side context
+            # This ensures microservices receive verified user information
             headers['X-User-ID'] = str(request.user.id)
             headers['X-User-Role'] = request.user.role
             
@@ -107,6 +115,11 @@ class GatewayProxyView(APIView):
             # Ensure Authorization header is set
             if 'Authorization' not in headers and request.auth:
                 headers['Authorization'] = f"Bearer {str(request.auth)}"
+            logger.debug(f"Forwarding with user context: ID={headers['X-User-ID']}, Role={headers['X-User-Role']}")
+            
+            # Explicitly set Content-Type if provided
+            if request.content_type:
+                headers['Content-Type'] = request.content_type
 
             microservice_response = requests.request(
                 method=request.method,
@@ -129,6 +142,19 @@ class GatewayProxyView(APIView):
                 except Exception:
                     # Cache failure - continue without caching
                     pass
+            # Log response metadata only (avoid logging sensitive payload data)
+            logger.info(
+                f"Microservice response: status={response.status_code}, "
+                f"content-type={response.headers.get('Content-Type')}, "
+                f"content-length={len(response.content)}"
+            )
+            
+            # Only log response body at DEBUG level with content-type restrictions
+            if logger.isEnabledFor(logging.DEBUG):
+                content_type = response.headers.get('Content-Type', '')
+                # Only sample safe content types (avoid logging binary/sensitive data)
+                if 'application/json' in content_type or 'text/' in content_type:
+                    logger.debug(f"Response sample: {response.text[:200]}...")
 
             # Return microservice response to frontend
             response = HttpResponse(
@@ -140,8 +166,10 @@ class GatewayProxyView(APIView):
             return self.response
 
         except requests.exceptions.RequestException as e:
-            # Handle connection errors (Service Down)
-            return HttpResponse(f"Gateway Error: {str(e)}", status=503)
+            # Log full exception details with stack trace for debugging
+            logger.exception(f"Gateway error proxying to {service}: {type(e).__name__}")
+            # Return generic error message to client (don't leak internal details)
+            return HttpResponse("Service temporarily unavailable", status=503)
 
     def get(self, request, service, path='', *args, **kwargs):
         """Handle GET requests"""

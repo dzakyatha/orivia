@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
@@ -48,9 +48,9 @@ const LoginPage = () => {
         password: formData.password,
       });
 
-      const { token, role, user } = response.data;
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('role', role || 'Customer');
+      const { access, user } = response.data;
+      localStorage.setItem('authToken', access);
+      localStorage.setItem('role', user?.role || 'Customer');
       localStorage.setItem('user', JSON.stringify(user));
 
       setLoading(false);
@@ -74,7 +74,6 @@ const LoginPage = () => {
   const handleGoogleAuth = useGoogleLogin({
     flow: 'auth-code',
     onSuccess: async (codeResponse) => {
-      console.log('Google auth success:', codeResponse);
       setLoading(true);
       
       try {

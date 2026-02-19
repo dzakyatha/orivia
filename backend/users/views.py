@@ -1,18 +1,20 @@
 import logging
 import hashlib
+import requests
 from django.db import IntegrityError
 from django.contrib.auth import get_user_model
 from allauth.socialaccount.models import SocialAccount
-from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
-from allauth.socialaccount.providers.oauth2.client import OAuth2Client
-from dj_rest_auth.registration.views import SocialLoginView, RegisterView
-from dj_rest_auth.views import LoginView, LogoutView
+from dj_rest_auth.registration.views import RegisterView
+from dj_rest_auth.views import LoginView
 from django.conf import settings
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated, AllowAny  # Add AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 from .models import Profile, UserRole
 from .serializers import ProfileDetailSerializer, ProfileUpdateSerializer
 
@@ -63,7 +65,7 @@ def hash_email(email):
 
 class CustomLoginView(LoginView):
     """Custom login view with logging and proper HTTP status codes"""
-    permission_classes = [AllowAny]  # ✅ Add this line
+    permission_classes = [AllowAny]
     
     def post(self, request, *args, **kwargs):
         email = request.data.get('email', 'unknown')
@@ -83,7 +85,6 @@ class CustomLoginView(LoginView):
                 # Check if this is an authentication error (invalid credentials)
                 if 'non_field_errors' in response_data:
                     logger.warning(f"Login failed - User hash: {email_hash}, Reason: Invalid credentials")
-                    logger.debug(f"Login validation error details: {response_data}")
                     
                     # Convert to 401 Unauthorized with user-friendly message
                     return Response(
@@ -107,7 +108,6 @@ class CustomLoginView(LoginView):
         except ValidationError as e:
             # Handle any ValidationError that might be raised
             logger.warning(f"Login validation exception - User hash: {email_hash}")
-            logger.debug(f"ValidationError details: {str(e.detail)}")
             raise
             
         except Exception as e:
@@ -117,7 +117,7 @@ class CustomLoginView(LoginView):
 
 class CustomRegisterView(RegisterView):
     """Custom registration view with logging"""
-    permission_classes = [AllowAny]  # ✅ Add this line
+    permission_classes = [AllowAny]
     
     def post(self, request, *args, **kwargs):
         email = request.data.get('email', 'unknown')
@@ -136,7 +136,6 @@ class CustomRegisterView(RegisterView):
             
         except IntegrityError as e:
             logger.warning(f"Registration failed - User hash: {email_hash}, Reason: Duplicate email")
-            logger.debug(f"IntegrityError details: {str(e)}")
             
             return Response(
                 {
@@ -148,7 +147,6 @@ class CustomRegisterView(RegisterView):
             
         except ValidationError as e:
             logger.warning(f"Registration failed - User hash: {email_hash}, Reason: Validation error")
-            logger.debug(f"Registration validation error details: {str(e.detail)}")
             raise
             
         except Exception as e:
@@ -156,12 +154,97 @@ class CustomRegisterView(RegisterView):
             raise
 
 
-class GoogleAuth(SocialLoginView):
-    """Step 1: Google OAuth authentication"""
-    permission_classes = [AllowAny]  # ✅ Add this line
-    adapter_class = GoogleOAuth2Adapter
-    callback_url = settings.GOOGLE_CALLBACK_URL  # e.g., "http://localhost:5173"
-    client_class = OAuth2Client
+class GoogleAuth(APIView):
+    """
+    Step 1: Google OAuth authentication
+    Receives Google OAuth code, exchanges for user info, 
+    and returns either login action (existing user) or register action (new user)
+    """
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        code = request.data.get('code')
+        if not code:
+            return Response({'error': 'Authorization code is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Exchange authorization code for tokens
+            token_url = 'https://oauth2.googleapis.com/token'
+            token_data = {
+                'code': code,
+                'client_id': settings.SOCIALACCOUNT_PROVIDERS['google']['APP']['client_id'],
+                'client_secret': settings.SOCIALACCOUNT_PROVIDERS['google']['APP']['secret'],
+                'redirect_uri': settings.GOOGLE_CALLBACK_URL,
+                'grant_type': 'authorization_code',
+            }
+            
+            token_response = requests.post(token_url, data=token_data)
+            token_response.raise_for_status()
+            tokens = token_response.json()
+            
+            # Verify and decode the ID token to get user info
+            id_info = id_token.verify_oauth2_token(
+                tokens['id_token'],
+                google_requests.Request(),
+                settings.SOCIALACCOUNT_PROVIDERS['google']['APP']['client_id']
+            )
+            
+            email = id_info.get('email')
+            name = id_info.get('name', '')
+            google_id = id_info.get('sub')
+            
+            if not email:
+                return Response({'error': 'Email not provided by Google'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Check if user already exists
+            try:
+                user = User.objects.get(email=email)
+                
+                # User exists - generate JWT tokens and return login action
+                refresh = RefreshToken.for_user(user)
+                
+                logger.info(f"Google OAuth: Existing user logged in - {email}")
+                
+                return Response({
+                    'action': 'login',
+                    'access_token': str(refresh.access_token),
+                    'refresh_token': str(refresh),
+                    'user': {
+                        'id': str(user.id),
+                        'email': user.email,
+                        'role': user.role,
+                        'profile': {
+                            'full_name': user.first_name or name,
+                            'avatar_url': None,
+                            'phone_number': None
+                        }
+                    }
+                }, status=status.HTTP_200_OK)
+                
+            except User.DoesNotExist:
+                # User doesn't exist - return register action with Google data
+                logger.info(f"Google OAuth: New user detected - {email}, redirecting to role selection")
+                
+                return Response({
+                    'action': 'register',
+                    'google_data': {
+                        'email': email,
+                        'name': name,
+                        'google_id': google_id
+                    }
+                }, status=status.HTTP_200_OK)
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Google OAuth: Token exchange failed - {str(e)}")
+            return Response({'error': 'Failed to exchange authorization code'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        except ValueError as e:
+            logger.error(f"Google OAuth: Token verification failed - {str(e)}")
+            return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            logger.error(f"Google OAuth: Unexpected error - {str(e)}", exc_info=True)
+            return Response({'error': 'Authentication failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class GoogleRegisterComplete(APIView):
@@ -203,7 +286,6 @@ class GoogleRegisterComplete(APIView):
                 SocialAccount.objects.create(user=user, provider='google', uid=google_id, extra_data=google_data)
             
             # Generate JWT token
-            from rest_framework_simplejwt.tokens import RefreshToken
             refresh = RefreshToken.for_user(user)
             
             return Response({
@@ -214,7 +296,6 @@ class GoogleRegisterComplete(APIView):
             
         except ValidationError as e:
             logger.warning(f"Google registration failed - Reason: Validation error")
-            logger.debug(f"Google OAuth validation error details: {str(e.detail)}")
             raise
             
         except Exception as e:

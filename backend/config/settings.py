@@ -151,6 +151,24 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Password Hashing (optimized for development speed)
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+]
+
+# Reduce iterations for development (faster login/registration)
+# Default is 720,000 iterations which takes ~2-3 seconds
+# For development, use 50,000 (still secure but much faster)
+# For production, increase this to 720,000 or higher
+if DEBUG:
+    from django.contrib.auth.hashers import PBKDF2PasswordHasher
+    class FastPBKDF2PasswordHasher(PBKDF2PasswordHasher):
+        iterations = 50000  # Fast for development
+    PASSWORD_HASHERS = [
+        'config.settings.FastPBKDF2PasswordHasher',
+        'django.contrib.auth.hashers.PBKDF2PasswordHasher',  # Fallback for existing passwords
+    ]
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/

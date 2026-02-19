@@ -17,7 +17,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "cryptography" },
-    { name = "dj-rest-auth" },
+    { name = "dj-rest-auth", extra = ["with-social"] },
     { name = "django" },
     { name = "django-allauth" },
     { name = "django-cors-headers" },
@@ -37,7 +37,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "cryptography", specifier = ">=46.0.3" },
-    { name = "dj-rest-auth", specifier = ">=5.0.2" },
+    { name = "dj-rest-auth", extras = ["with-social"], specifier = ">=7.0.0" },
     { name = "django", specifier = ">=6.0.1" },
     { name = "django-allauth", specifier = ">=65.14.0" },
     { name = "django-cors-headers", specifier = ">=4.9.0" },
@@ -277,13 +277,18 @@ wheels = [
 
 [[package]]
 name = "dj-rest-auth"
-version = "5.0.2"
+version = "7.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django" },
     { name = "djangorestframework" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/60/0b/344743248e8282e4355661d2e136fffbc80ceeeebe47f9c2c10eaf41dbca/dj-rest-auth-5.0.2.tar.gz", hash = "sha256:aad7d912476169e9991547bf98645344d3939be2d7052098048d819524c115d9", size = 217511, upload-time = "2023-11-15T04:02:07.33Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9f/e0/83a98a31d2398b310044f5f0060a1ae2bbdbaeece54761b1a2b3dd433bfb/dj_rest_auth-7.1.1.tar.gz", hash = "sha256:33dc190d3007aef6658db53352a6dc214e5d464e7efd97589dc2bb81ea1d5476", size = 420086, upload-time = "2026-02-17T01:57:26.479Z" }
+
+[package.optional-dependencies]
+with-social = [
+    { name = "django-allauth", extra = ["socialaccount"] },
+]
 
 [[package]]
 name = "django"
@@ -310,6 +315,13 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/23/9b/061a6ac65c602eb721b13fbf9c665b20fb900f113a03ec8521b5fcf16b83/django_allauth-65.14.0.tar.gz", hash = "sha256:5529227aba2b1377d900e9274a3f24496c645e65400fbae3cad5789944bc4d0b", size = 1991909, upload-time = "2026-01-17T18:43:12.928Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ce/c8/2f959ff8466913d95ba72eb4a29bd7998d28a559786033a97b5bbdda2b81/django_allauth-65.14.0-py3-none-any.whl", hash = "sha256:448f5f7877f95fcbe1657256510fe7822d7871f202521a29e23ef937f3325a97", size = 1793052, upload-time = "2026-01-17T18:43:08.954Z" },
+]
+
+[package.optional-dependencies]
+socialaccount = [
+    { name = "oauthlib" },
+    { name = "pyjwt", extra = ["crypto"] },
+    { name = "requests" },
 ]
 
 [[package]]
@@ -393,6 +405,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/72/34/14ca021ce8e5dfedc35312d08ba8bf51fdd999c576889fc2c24cb97f4f10/iniconfig-2.3.0.tar.gz", hash = "sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730", size = 20503, upload-time = "2025-10-18T21:55:43.219Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl", hash = "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12", size = 7484, upload-time = "2025-10-18T21:55:41.639Z" },
+]
+
+[[package]]
+name = "oauthlib"
+version = "3.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0b/5f/19930f824ffeb0ad4372da4812c50edbd1434f678c90c2733e1188edfc63/oauthlib-3.3.1.tar.gz", hash = "sha256:0f0f8aa759826a193cf66c12ea1af1637f87b9b4622d46e866952bb022e538c9", size = 185918, upload-time = "2025-06-19T22:48:08.269Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/be/9c/92789c596b8df838baa98fa71844d84283302f7604ed565dafe5a6b5041a/oauthlib-3.3.1-py3-none-any.whl", hash = "sha256:88119c938d2b8fb88561af5f6ee0eec8cc8d552b7bb1f712743136eb7523b7a1", size = 160065, upload-time = "2025-06-19T22:48:06.508Z" },
 ]
 
 [[package]]
@@ -505,6 +526,11 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e7/46/bd74733ff231675599650d3e47f361794b22ef3e3770998dda30d3b63726/pyjwt-2.10.1.tar.gz", hash = "sha256:3cc5772eb20009233caf06e9d8a0577824723b44e6648ee0a2aedb6cf9381953", size = 87785, upload-time = "2024-11-28T03:43:29.933Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/61/ad/689f02752eeec26aed679477e80e632ef1b682313be70793d798c1d5fc8f/PyJWT-2.10.1-py3-none-any.whl", hash = "sha256:dcdd193e30abefd5debf142f9adfcdd2b58004e644f25406ffaebd50bd98dacb", size = 22997, upload-time = "2024-11-28T03:43:27.893Z" },
+]
+
+[package.optional-dependencies]
+crypto = [
+    { name = "cryptography" },
 ]
 
 [[package]]

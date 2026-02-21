@@ -7,7 +7,7 @@ import Modal, { modalStyles } from '../../components/ui/Modal.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPen, faEye, faClock, faCheck, faCalendarDays, faTag, faMapMarkerAlt, faXmark, faDownload } from '@fortawesome/free-solid-svg-icons';
 import { fetchProfile, updateProfile } from '../../services/profileService';
-import { fetchLatestTripByEmail } from '../../services/tripService';
+import { fetchLatestTripByEmail, fetchBookings } from '../../services/tripService';
 import countryList from 'react-select-country-list';
 import profileImage from '../../assets/images/jeki.jpg';
 import tripThumb1 from '../../assets/images/landingpage2.png';
@@ -129,27 +129,18 @@ export default function CustomerProfilePage() {
             departure_date: latestTrip.departure_date,
             date: latestTrip.departure_date, // for backward compatibility in UI
             price: latestTrip.price ? `Rp ${latestTrip.price.toLocaleString('id-ID')}` : '',
+            // prefer destination_type (new) and keep location for compatibility
+            destination_type: latestTrip.destination_type || '',
             location: latestTrip.location || '',
             status: latestTrip.status || 'Upcoming',
-            tag: latestTrip.status || 'Upcoming',
+            // legacy tag fallback: prefer destination_type, then location, then status
+            tag: latestTrip.destination_type || latestTrip.location || latestTrip.status || 'Upcoming',
           };
 
           setCustomerLatestTrips([mappedTrip]);
 
-          // Set booking details for the trip detail modal
-          setTripBookingDetails({
-            [latestTrip.trip_id]: {
-              bookingId: latestTrip.trip_id,
-              customerName: profileDetail?.name || localUser?.name || '',
-              phoneNumber: profileDetail?.phone || localUser?.phone || '',
-              gender: profileDetail?.gender || localUser?.gender || '',
-              nationality: profileDetail?.nationality || localUser?.nationality || '',
-              dateOfBirth: profileDetail?.dateOfBirth || localUser?.date_of_birth || '',
-              pickupPoint: '',
-              notes: '',
-              passengers: []
-            }
-          });
+          // Don't pre-fill booking details with profile data
+          // Let openTripDetail fetch the real participant data from API
         } else {
           // No trips found for this user
           setCustomerLatestTrips([]);
@@ -259,8 +250,56 @@ export default function CustomerProfilePage() {
   const isFormValid = validateEditableProfile(editableProfile).valid;
 
   // Open Trip Detail Modal
-  const openTripDetail = (trip) => {
+  const openTripDetail = async (trip) => {
     setSelectedTrip(trip);
+    
+    // Fetch booking details for this trip
+    try {
+      console.log('[DEBUG] Fetching bookings for trip:', trip);
+      const bookings = await fetchBookings();
+      console.log('[DEBUG] Received bookings:', bookings);
+      
+      // Find booking for this trip (convert to string for comparison since API returns string IDs)
+      const booking = bookings.find(b => {
+        console.log('[DEBUG] Checking booking:', b, 'against trip_id:', trip.trip_id);
+        return String(b.trip_id) === String(trip.trip_id) || String(b.trip_id) === String(trip.id);
+      });
+      
+      console.log('[DEBUG] Found booking:', booking);
+      
+      if (booking && booking.passenger) {
+        console.log('[DEBUG] Setting booking details with passenger:', booking.passenger);
+        // Use participant data from booking
+        setTripBookingDetails(prev => ({
+          ...prev,
+          [trip.id]: {
+            bookingId: booking.booking_id,
+            customerName: booking.passenger.name,
+            phone: booking.passenger.phone_number,
+            dateOfBirth: booking.passenger.date_of_birth,
+            gender: booking.passenger.gender,
+            nationality: booking.passenger.nationality,
+            pickupPoint: booking.passenger.pick_up_point,
+            notes: booking.passenger.notes
+          }
+        }));
+      } else {
+        console.warn('[DEBUG] No booking found or missing passenger data');
+      }
+    } catch (error) {
+      console.error('Failed to fetch booking details:', error);
+      // More granular debug output
+      if (error?.response) {
+        console.error('[DEBUG] openTripDetail: response status', error.response.status);
+        console.error('[DEBUG] openTripDetail: response data', error.response.data);
+        console.error('[DEBUG] openTripDetail: response headers', error.response.headers);
+      } else if (error?.request) {
+        console.error('[DEBUG] openTripDetail: no response, request:', error.request);
+      } else {
+        console.error('[DEBUG] openTripDetail: message', error.message);
+      }
+    }
+    
     setShowTripDetail(true);
   };
 
@@ -284,7 +323,7 @@ export default function CustomerProfilePage() {
     lines.push('');
     lines.push(`Booking ID: ${safeField(booking.bookingId || '')}`);
     lines.push(`Trip: ${safeField(trip.title)}`);
-    lines.push(`Location: ${safeField(trip.location)}`);
+    lines.push(`Destination Type: ${safeField(trip.destination_type || trip.location)}`);
     lines.push(`Date: ${safeField(trip.date)}`);
     lines.push(`Price: ${safeField(trip.price)}`);
     lines.push(`Status: ${safeField(trip.status)}`);
@@ -464,7 +503,7 @@ export default function CustomerProfilePage() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
                           <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, color: colors.accent5, fontSize: 18 }}>{trip.title}</div>
-                          <div style={{ color: colors.accent5, marginTop: 6 }}>{trip.location}</div>
+                          <div style={{ color: colors.accent5, marginTop: 6 }}>{trip.destination_type}</div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                           <Button variant="btn1" onClick={() => openTripDetail(trip)} style={{ fontWeight: 500 }}>
@@ -498,7 +537,7 @@ export default function CustomerProfilePage() {
 
                         <div style={{ color: colors.accent5, display: 'flex', alignItems: 'center', gap: 8 }}>
                           <FontAwesomeIcon icon={faMapMarkerAlt} style={{ color: colors.accent5 }} />
-                          <span>{trip.tag}</span>
+                          <span>{trip.destination_type}</span>
                         </div>
                       </div>
                     </div>
@@ -645,17 +684,27 @@ export default function CustomerProfilePage() {
               {
                 (() => {
                   const booking = tripBookingDetails[selectedTrip.id] || {};
+                  
+                  // Only use data from booking API (participant data), no profile fallbacks
                   const passengers = (booking.passengers && booking.passengers.length)
                     ? booking.passengers
-                    : [{
-                        customerName: booking.customerName || booking.customer || booking.customer_name || displayName,
-                        phoneNumber: booking.phoneNumber || booking.phone || '',
+                    : (booking.customerName ? [{
+                        customerName: booking.customerName,
+                        phoneNumber: booking.phone || '',
                         gender: booking.gender || '',
                         nationality: booking.nationality || '',
-                        dateOfBirth: booking.dateOfBirth || booking.dob || '',
-                        pickupPoint: booking.pickupPoint || booking.pickup || '—',
+                        dateOfBirth: booking.dateOfBirth || '',
+                        pickupPoint: booking.pickupPoint || '—',
                         notes: booking.notes || ''
-                      }];
+                      }] : [{
+                        customerName: '—',
+                        phoneNumber: '—',
+                        gender: '—',
+                        nationality: '—',
+                        dateOfBirth: '—',
+                        pickupPoint: '—',
+                        notes: 'Loading booking details...'
+                      }]);
 
                   const p = passengers[passengerIndex] || passengers[0];
 

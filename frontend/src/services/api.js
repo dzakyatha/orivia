@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-const OPENTRIP_API_URL = import.meta.env.VITE_OPENTRIP_API_URL || 'http://localhost:8002/api';
+const OPENTRIP_API_URL = import.meta.env.VITE_OPENTRIP_API_URL || 'http://localhost:8005/api';
 const PLANNER_API_URL = import.meta.env.VITE_PLANNER_API_URL || 'http://localhost:8001/api';
 
 // Create axios instance for main API (orivia - central database)

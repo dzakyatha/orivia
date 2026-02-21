@@ -106,7 +106,7 @@ export async function fetchTrip(tripId) {
 export async function fetchLatestTripByEmail(email, role) {
   try {
     // Validate role - only fetch for Customer role
-    if (!role || role.toLowerCase() !== 'customer') {
+    if (!role || role.toUpperCase() !== 'CUSTOMER') {
       return null;
     }
 
@@ -115,7 +115,7 @@ export async function fetchLatestTripByEmail(email, role) {
     }
 
     // Call open-trip-system microservice directly
-    const res = await opentripAPI.get('/trips/latest', {
+    const res = await opentripAPI.get('/opentrip/trips/latest', {
       params: { email }
     });
 
@@ -132,6 +132,7 @@ export async function fetchLatestTripByEmail(email, role) {
       price: res.data.price,
       created_at: res.data.created_at || null,
       location: res.data.location || '',
+      destination_type: res.data.destination_type || '',
       status: res.data.status || 'Upcoming',
     };
   } catch (error) {
@@ -194,8 +195,23 @@ export async function updateItinerary(tripId, destinations, description) {
 
 /** Fetch all bookings for the current user */
 export async function fetchBookings() {
-  const res = await api.get('/opentrip/bookings/');
-  return Array.isArray(res.data) ? res.data : [];
+  try {
+    const res = await api.get('/opentrip/bookings/');
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (err) {
+    // Enhanced debug logging to surface gateway/backend errors in browser console
+    console.error('[DEBUG] fetchBookings: request failed', err);
+    if (err.response) {
+      console.error('[DEBUG] fetchBookings: response status', err.response.status);
+      console.error('[DEBUG] fetchBookings: response data', err.response.data);
+      console.error('[DEBUG] fetchBookings: response headers', err.response.headers);
+    } else if (err.request) {
+      console.error('[DEBUG] fetchBookings: no response received, request:', err.request);
+    } else {
+      console.error('[DEBUG] fetchBookings: error message', err.message);
+    }
+    throw err;
+  }
 }
 
 /** Fetch a single booking */

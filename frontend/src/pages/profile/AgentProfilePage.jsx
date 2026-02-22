@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import axios from 'axios';
 import Navbar from '../../components/ui/Navbar.jsx';
 import Button from '../../components/ui/Button.jsx';
 import { ProfileCard } from '../../components/ui/Card.jsx';
 import Modal, { modalStyles } from '../../components/ui/Modal.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPen, faCheck, faXmark } from '@fortawesome/free-solid-svg-icons';
-import { dummyAgentProfile } from '../../mocks/mockData.js';
+import { fetchProfile, updateProfile } from '../../services/profileService';
 import countryList from 'react-select-country-list';
 import profileImage from '../../assets/images/jeki.jpg';
 import bottomImage from '../../assets/images/landingpage2.png';
@@ -55,68 +54,27 @@ export default function AgentProfilePage() {
   });
   const [errors, setErrors] = useState({});
 
-  // Fetch user data from API if not in localStorage
+  // Fetch profile from Django API
   useEffect(() => {
     const token = localStorage.getItem('authToken');
-    if (localUser) return;
     if (!token) return;
 
     setLoading(true);
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-
-    async function fetchUser() {
+    async function loadProfile() {
       try {
-        const response = await axios.get(`${apiUrl}/auth/user/`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const userData = response.data.user || response.data;
-        if (userData) {
-          localStorage.setItem('user', JSON.stringify(userData));
-          setLocalUser(userData);
-        }
+        const profile = await fetchProfile();
+        setProfileDetail(profile);
+        const merged = { ...localUser, ...profile };
+        localStorage.setItem('user', JSON.stringify(merged));
+        setLocalUser(merged);
       } catch (error) {
-        // ignore fetch errors silently; UI will show defaults
+        console.error('Failed to fetch profile:', error);
       } finally {
         setLoading(false);
       }
     }
-
-    fetchUser();
-  }, [localUser]);
-
-  // If localUser exists but no obvious date fields, try fetching detailed profile by id
-  useEffect(() => {
-    if (!localUser) return;
-    const hasDate = Object.keys(localUser).some(k => /date|joined|created/i.test(k)) || !!localUser.profile;
-    if (hasDate) return;
-    const token = localStorage.getItem('authToken');
-    if (!token) return;
-
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    const id = localUser.id || localUser.user_id || localUser.pk;
-    if (!id) return;
-
-    async function fetchProfileDetail() {
-      const endpoints = [`/users/${id}/`, `/profiles/${id}/`, `/users/profile/${id}/`];
-      for (const ep of endpoints) {
-        try {
-          const res = await axios.get(`${apiUrl}${ep}`, { headers: { Authorization: `Bearer ${token}` } });
-          const detail = res.data.user || res.data.profile || res.data || null;
-          if (detail) {
-            setProfileDetail(detail);
-            const merged = { ...localUser, ...detail };
-            localStorage.setItem('user', JSON.stringify(merged));
-            setLocalUser(merged);
-            return;
-          }
-        } catch (e) {
-          // try next
-        }
-      }
-    }
-
-    fetchProfileDetail();
-  }, [localUser]);
+    loadProfile();
+  }, []);
 
   function extractUsernameFromEmail(email) {
     if (!email) return null;
@@ -127,13 +85,15 @@ export default function AgentProfilePage() {
     }
   }
 
-  const userEmail = localUser?.email || googleData?.email || dummyAgentProfile.email;
+  const userEmail = localUser?.email || googleData?.email || '';
   const displayName = googleData?.name || 
                      localUser?.first_name || 
                      localUser?.name || 
+                     localUser?.fullName ||
+                     profileDetail?.name ||
                      extractUsernameFromEmail(userEmail) || 
-                     dummyAgentProfile.name;
-  const username = localUser?.username || extractUsernameFromEmail(userEmail) || dummyAgentProfile.username;
+                     '';
+  const username = localUser?.username || extractUsernameFromEmail(userEmail) || '';
 
   // Country list for nationality dropdown
   const countryOptions = (typeof countryList === 'function') ? (countryList().getData ? countryList().getData() : []) : [];
@@ -143,20 +103,20 @@ export default function AgentProfilePage() {
   const openEditModal = () => {
     setEditableProfile({
       name: displayName,
-      phone: localUser?.phone_number || localUser?.phone || dummyAgentProfile.phone,
-      dateOfBirth: localUser?.date_of_birth || localUser?.birth_date || dummyAgentProfile.dateOfBirth,
-      gender: localUser?.gender || dummyAgentProfile.gender,
-      district: localUser?.district || localUser?.area || dummyAgentProfile.district,
-      city: localUser?.city || localUser?.regency || dummyAgentProfile.city,
-      province: localUser?.province || localUser?.state || dummyAgentProfile.province,
-      nationality: localUser?.nationality || dummyAgentProfile.nationality,
-      language: localUser?.language_preference || dummyAgentProfile.language
+      phone: localUser?.phone_number || localUser?.phone || profileDetail?.phone || '',
+      dateOfBirth: localUser?.date_of_birth || localUser?.birth_date || profileDetail?.dateOfBirth || '',
+      gender: localUser?.gender || profileDetail?.gender || '',
+      district: localUser?.district || localUser?.area || profileDetail?.district || '',
+      city: localUser?.city || localUser?.regency || profileDetail?.city || '',
+      province: localUser?.province || localUser?.state || profileDetail?.province || '',
+      nationality: localUser?.nationality || profileDetail?.nationality || '',
+      language: localUser?.language_preference || profileDetail?.language || ''
     });
     setShowEditModal(true);
   };
 
   // Save Profile Changes
-  const saveProfile = () => {
+  const saveProfile = async () => {
     // Validate before saving
     const validation = validateEditableProfile(editableProfile);
     if (!validation.valid) {
@@ -164,25 +124,34 @@ export default function AgentProfilePage() {
       return;
     }
 
-    // Here you can add API call to save the profile
-    // For now, we'll just update localStorage
-    const updatedUser = {
-      ...localUser,
-      first_name: editableProfile.name,
-      phone_number: editableProfile.phone,
-      date_of_birth: editableProfile.dateOfBirth,
-      gender: editableProfile.gender,
-      district: editableProfile.district,
-      city: editableProfile.city,
-      province: editableProfile.province,
-      nationality: editableProfile.nationality,
-      language_preference: editableProfile.language
-    };
-    
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    setLocalUser(updatedUser);
-    setShowEditModal(false);
-    setErrors({});
+    try {
+      const updated = await updateProfile(editableProfile);
+      const mergedUser = { ...localUser, ...updated };
+      localStorage.setItem('user', JSON.stringify(mergedUser));
+      setLocalUser(mergedUser);
+      setProfileDetail(updated);
+      setShowEditModal(false);
+      setErrors({});
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+      // Fallback: save to localStorage
+      const updatedUser = {
+        ...localUser,
+        first_name: editableProfile.name,
+        phone_number: editableProfile.phone,
+        date_of_birth: editableProfile.dateOfBirth,
+        gender: editableProfile.gender,
+        district: editableProfile.district,
+        city: editableProfile.city,
+        province: editableProfile.province,
+        nationality: editableProfile.nationality,
+        language_preference: editableProfile.language
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setLocalUser(updatedUser);
+      setShowEditModal(false);
+      setErrors({});
+    }
   };
 
   function validateEditableProfile(profile) {
@@ -227,22 +196,23 @@ export default function AgentProfilePage() {
                     localUser?.createdAt ||
                     localUser?.profile?.created_at ||
                     profileDetail?.created_at ||
+                    profileDetail?.joinedDate ||
                     localUser?.profile?.createdAt ||
                     localUser?.DATE_JOINED ||
-                    dummyAgentProfile.joinedDate;
-  const birthDate = localUser?.date_of_birth || localUser?.birth_date || dummyAgentProfile.dateOfBirth;
+                    '';
+  const birthDate = localUser?.date_of_birth || localUser?.birth_date || profileDetail?.dateOfBirth || '';
 
   const infoRows = [
-    ['Joined Since', joinedDate ? formatDateIndo(joinedDate) : formatDateIndo(dummyAgentProfile.joinedDate)],
-    ['Email', userEmail],
-    ['Phone Number', localUser?.phone_number || localUser?.phone || dummyAgentProfile.phone],
-    ['Date of Birth', birthDate ? formatDateIndo(birthDate) : formatDateIndo(dummyAgentProfile.dateOfBirth)],
-    ['Gender', localUser?.gender || dummyAgentProfile.gender],
-    ['District / Area', localUser?.district || localUser?.area || dummyAgentProfile.district],
-    ['City / Regency', localUser?.city || localUser?.regency || dummyAgentProfile.city],
-    ['Province / State', localUser?.province || localUser?.state || dummyAgentProfile.province],
-    ['Nationality', localUser?.nationality || dummyAgentProfile.nationality],
-    ['Language preference', localUser?.language_preference || dummyAgentProfile.language],
+    ['Joined Since', joinedDate ? formatDateIndo(joinedDate) : '—'],
+    ['Email', userEmail || '—'],
+    ['Phone Number', localUser?.phone_number || localUser?.phone || profileDetail?.phone || '—'],
+    ['Date of Birth', birthDate ? formatDateIndo(birthDate) : '—'],
+    ['Gender', localUser?.gender || profileDetail?.gender || '—'],
+    ['District / Area', localUser?.district || localUser?.area || profileDetail?.district || '—'],
+    ['City / Regency', localUser?.city || localUser?.regency || profileDetail?.city || '—'],
+    ['Province / State', localUser?.province || localUser?.state || profileDetail?.province || '—'],
+    ['Nationality', localUser?.nationality || profileDetail?.nationality || '—'],
+    ['Language preference', localUser?.language_preference || profileDetail?.language || '—'],
   ];
 
   return (

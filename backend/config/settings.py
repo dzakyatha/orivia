@@ -325,7 +325,7 @@ if LOGGING_ENABLED:
 
 # Microservices URL
 TRAVEL_PLANNER_URL = config('TRAVEL_PLANNER_URL', default='http://localhost:8001') # localhost for development
-OPEN_TRIP_URL = config('OPEN_TRIP_URL', default='http://localhost:8002')
+OPEN_TRIP_URL = config('OPEN_TRIP_URL', default='http://localhost:8005')
 
 # Redis Configuration
 if TESTING:
@@ -336,12 +336,37 @@ if TESTING:
         }
     }
 else:
-    CACHES = {
-        "default": {
-            "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": config('REDIS_LOCATION', default='redis://127.0.0.1:6379/1'),
-            "OPTIONS": {
-                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+    _redis_available = False
+    try:
+        import redis as _redis_lib
+        _r = _redis_lib.Redis.from_url(
+            config('REDIS_LOCATION', default='redis://127.0.0.1:6379/1'),
+            socket_connect_timeout=1,
+        )
+        _r.ping()
+        _redis_available = True
+    except Exception:
+        pass
+
+    if _redis_available:
+        CACHES = {
+            "default": {
+                "BACKEND": "django_redis.cache.RedisCache",
+                "LOCATION": config('REDIS_LOCATION', default='redis://127.0.0.1:6379/1'),
+                "OPTIONS": {
+                    "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                }
             }
         }
-    }
+    else:
+        import warnings
+        warnings.warn(
+            "Redis is not available — falling back to in-memory cache. "
+            "Run 'docker compose -f redis-docker-compose.yml up -d' to start Redis.",
+            stacklevel=1,
+        )
+        CACHES = {
+            "default": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            }
+        }

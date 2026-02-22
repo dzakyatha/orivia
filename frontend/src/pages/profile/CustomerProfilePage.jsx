@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import axios from 'axios';
 import Navbar from '../../components/ui/Navbar.jsx';
 import Button from '../../components/ui/Button.jsx';
 import { ProfileCard } from '../../components/ui/Card.jsx';
 import Modal, { modalStyles } from '../../components/ui/Modal.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPen, faEye, faClock, faCheck, faCalendarDays, faTag, faMapMarkerAlt, faXmark, faDownload } from '@fortawesome/free-solid-svg-icons';
-import { dummyCustomerProfile, customerLatestTrips, tripBookingDetails } from '../../mocks/mockData.js';
+import { fetchProfile, updateProfile } from '../../services/profileService';
+import { fetchLatestTripByEmail, fetchBookings } from '../../services/tripService';
 import countryList from 'react-select-country-list';
 import profileImage from '../../assets/images/jeki.jpg';
 import tripThumb1 from '../../assets/images/landingpage2.png';
@@ -61,75 +61,111 @@ export default function CustomerProfilePage() {
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [passengerIndex, setPassengerIndex] = useState(0);
 
+  // Customer latest trips & booking details from API
+  const [customerLatestTrips, setCustomerLatestTrips] = useState([]);
+  const [tripBookingDetails, setTripBookingDetails] = useState({});
+  const [latestTripError, setLatestTripError] = useState(null);
+
+  // Fetch profile from Django API
   useEffect(() => {
     const token = localStorage.getItem('authToken');
-    if (localUser) return;
     if (!token) return;
 
     setLoading(true);
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-
-    async function fetchUser() {
+    async function loadProfile() {
       try {
-        const response = await axios.get(`${apiUrl}/auth/user/`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const userData = response.data.user || response.data;
-        if (userData) {
-          localStorage.setItem('user', JSON.stringify(userData));
-          setLocalUser(userData);
-        }
+        const profile = await fetchProfile();
+        setProfileDetail(profile);
+        const merged = { ...localUser, ...profile };
+        localStorage.setItem('user', JSON.stringify(merged));
+        setLocalUser(merged);
       } catch (error) {
-        // ignore
+        console.error('Failed to fetch profile:', error);
       } finally {
         setLoading(false);
       }
     }
+    loadProfile();
+  }, []);
 
-    fetchUser();
-  }, [localUser]);
-
+  // Fetch latest trip from open-trip-system microservice (only for Customer role)
   useEffect(() => {
-    if (!localUser) return;
-    const hasDate = Object.keys(localUser).some(k => /date|joined|created/i.test(k)) || !!localUser.profile;
-    if (hasDate) return;
     const token = localStorage.getItem('authToken');
     if (!token) return;
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    const id = localUser.id || localUser.user_id || localUser.pk;
-    if (!id) return;
+    async function loadLatestTrip() {
+      try {
+        // Reset error state
+        setLatestTripError(null);
 
-    async function fetchProfileDetail() {
-      const endpoints = [`/users/${id}/`, `/profiles/${id}/`, `/users/profile/${id}/`];
-      for (const ep of endpoints) {
-        try {
-          const res = await axios.get(`${apiUrl}${ep}`, { headers: { Authorization: `Bearer ${token}` } });
-          const detail = res.data.user || res.data.profile || res.data || null;
-          if (detail) {
-            setProfileDetail(detail);
-            const merged = { ...localUser, ...detail };
-            localStorage.setItem('user', JSON.stringify(merged));
-            setLocalUser(merged);
-            return;
-          }
-        } catch (e) {
-          // try next
+        // Get user email and role from profile or localStorage
+        const userEmail = profileDetail?.email || localUser?.email;
+        const userRole = profileDetail?.role || localUser?.role || localStorage.getItem('role');
+
+        if (!userEmail) {
+          console.log('No user email available, skipping latest trip fetch');
+          return;
         }
+
+        // Role validation: only fetch for Customer role
+        if (!userRole || userRole.toLowerCase() !== 'customer') {
+          console.log(`User role is "${userRole}", not fetching latest trip (only for Customer role)`);
+          setCustomerLatestTrips([]);
+          return;
+        }
+
+        // Fetch latest trip from open-trip-system microservice
+        const latestTrip = await fetchLatestTripByEmail(userEmail, userRole);
+
+        if (latestTrip) {
+          // Map the response to frontend format
+          // Backend uses: trip_id, trip_name, departure_date, price
+          // Frontend expects: id, title, date, price (keeping the mapping for display)
+          const mappedTrip = {
+            id: latestTrip.trip_id,
+            trip_id: latestTrip.trip_id,
+            trip_name: latestTrip.trip_name,
+            title: latestTrip.trip_name, // for backward compatibility in UI
+            departure_date: latestTrip.departure_date,
+            date: latestTrip.departure_date, // for backward compatibility in UI
+            price: latestTrip.price ? `Rp ${latestTrip.price.toLocaleString('id-ID')}` : '',
+            // prefer destination_type (new) and keep location for compatibility
+            destination_type: latestTrip.destination_type || '',
+            location: latestTrip.location || '',
+            status: latestTrip.status || 'Upcoming',
+            // legacy tag fallback: prefer destination_type, then location, then status
+            tag: latestTrip.destination_type || latestTrip.location || latestTrip.status || 'Upcoming',
+          };
+
+          setCustomerLatestTrips([mappedTrip]);
+
+          // Don't pre-fill booking details with profile data
+          // Let openTripDetail fetch the real participant data from API
+        } else {
+          // No trips found for this user
+          setCustomerLatestTrips([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch latest trip:', error);
+        setLatestTripError(error.message || 'Failed to load latest trip');
+        setCustomerLatestTrips([]);
       }
     }
 
-    fetchProfileDetail();
-  }, [localUser]);
+    // Only load if we have profile data or user data
+    if (profileDetail || localUser) {
+      loadLatestTrip();
+    }
+  }, [profileDetail, localUser]);
 
   function extractUsernameFromEmail(email) {
     if (!email) return null;
     try { return email.split('@')[0]; } catch (e) { return null; }
   }
 
-  const userEmail = localUser?.email || googleData?.email || dummyCustomerProfile.email;
-  const displayName = googleData?.name || localUser?.first_name || localUser?.name || extractUsernameFromEmail(userEmail) || dummyCustomerProfile.name;
-  const username = localUser?.username || extractUsernameFromEmail(userEmail) || dummyCustomerProfile.username;
+  const userEmail = localUser?.email || googleData?.email || '';
+  const displayName = googleData?.name || localUser?.first_name || localUser?.name || localUser?.fullName || profileDetail?.name || extractUsernameFromEmail(userEmail) || '';
+  const username = localUser?.username || extractUsernameFromEmail(userEmail) || '';
 
   // Country list for nationality dropdown
   const countryOptions = (typeof countryList === 'function') ? (countryList().getData ? countryList().getData() : []) : [];
@@ -139,20 +175,20 @@ export default function CustomerProfilePage() {
   const openEditModal = () => {
     setEditableProfile({
       name: displayName,
-      phone: localUser?.phone_number || localUser?.phone || dummyCustomerProfile.phone,
-      dateOfBirth: localUser?.date_of_birth || localUser?.birth_date || dummyCustomerProfile.dateOfBirth,
-      gender: localUser?.gender || dummyCustomerProfile.gender,
-      district: localUser?.district || localUser?.area || dummyCustomerProfile.district,
-      city: localUser?.city || localUser?.regency || dummyCustomerProfile.city,
-      province: localUser?.province || localUser?.state || dummyCustomerProfile.province,
-      nationality: localUser?.nationality || dummyCustomerProfile.nationality,
-      language: localUser?.language_preference || dummyCustomerProfile.language
+      phone: localUser?.phone_number || localUser?.phone || profileDetail?.phone || '',
+      dateOfBirth: localUser?.date_of_birth || localUser?.birth_date || profileDetail?.dateOfBirth || '',
+      gender: localUser?.gender || profileDetail?.gender || '',
+      district: localUser?.district || localUser?.area || profileDetail?.district || '',
+      city: localUser?.city || localUser?.regency || profileDetail?.city || '',
+      province: localUser?.province || localUser?.state || profileDetail?.province || '',
+      nationality: localUser?.nationality || profileDetail?.nationality || '',
+      language: localUser?.language_preference || profileDetail?.language || ''
     });
     setShowEditModal(true);
   };
 
   // Save Profile Changes
-  const saveProfile = () => {
+  const saveProfile = async () => {
     // Validate before saving
     const validation = validateEditableProfile(editableProfile);
     if (!validation.valid) {
@@ -160,25 +196,34 @@ export default function CustomerProfilePage() {
       return;
     }
 
-    // Here you can add API call to save the profile
-    // For now, we'll just update localStorage
-    const updatedUser = {
-      ...localUser,
-      first_name: editableProfile.name,
-      phone_number: editableProfile.phone,
-      date_of_birth: editableProfile.dateOfBirth,
-      gender: editableProfile.gender,
-      district: editableProfile.district,
-      city: editableProfile.city,
-      province: editableProfile.province,
-      nationality: editableProfile.nationality,
-      language_preference: editableProfile.language
-    };
-
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    setLocalUser(updatedUser);
-    setShowEditModal(false);
-    setErrors({});
+    try {
+      const updated = await updateProfile(editableProfile);
+      const mergedUser = { ...localUser, ...updated };
+      localStorage.setItem('user', JSON.stringify(mergedUser));
+      setLocalUser(mergedUser);
+      setProfileDetail(updated);
+      setShowEditModal(false);
+      setErrors({});
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+      // Fallback: save to localStorage
+      const updatedUser = {
+        ...localUser,
+        first_name: editableProfile.name,
+        phone_number: editableProfile.phone,
+        date_of_birth: editableProfile.dateOfBirth,
+        gender: editableProfile.gender,
+        district: editableProfile.district,
+        city: editableProfile.city,
+        province: editableProfile.province,
+        nationality: editableProfile.nationality,
+        language_preference: editableProfile.language
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setLocalUser(updatedUser);
+      setShowEditModal(false);
+      setErrors({});
+    }
   };
 
   function validateEditableProfile(profile) {
@@ -205,8 +250,56 @@ export default function CustomerProfilePage() {
   const isFormValid = validateEditableProfile(editableProfile).valid;
 
   // Open Trip Detail Modal
-  const openTripDetail = (trip) => {
+  const openTripDetail = async (trip) => {
     setSelectedTrip(trip);
+    
+    // Fetch booking details for this trip
+    try {
+      console.log('[DEBUG] Fetching bookings for trip:', trip);
+      const bookings = await fetchBookings();
+      console.log('[DEBUG] Received bookings:', bookings);
+      
+      // Find booking for this trip (convert to string for comparison since API returns string IDs)
+      const booking = bookings.find(b => {
+        console.log('[DEBUG] Checking booking:', b, 'against trip_id:', trip.trip_id);
+        return String(b.trip_id) === String(trip.trip_id) || String(b.trip_id) === String(trip.id);
+      });
+      
+      console.log('[DEBUG] Found booking:', booking);
+      
+      if (booking && booking.passenger) {
+        console.log('[DEBUG] Setting booking details with passenger:', booking.passenger);
+        // Use participant data from booking
+        setTripBookingDetails(prev => ({
+          ...prev,
+          [trip.id]: {
+            bookingId: booking.booking_id,
+            customerName: booking.passenger.name,
+            phone: booking.passenger.phone_number,
+            dateOfBirth: booking.passenger.date_of_birth,
+            gender: booking.passenger.gender,
+            nationality: booking.passenger.nationality,
+            pickupPoint: booking.passenger.pick_up_point,
+            notes: booking.passenger.notes
+          }
+        }));
+      } else {
+        console.warn('[DEBUG] No booking found or missing passenger data');
+      }
+    } catch (error) {
+      console.error('Failed to fetch booking details:', error);
+      // More granular debug output
+      if (error?.response) {
+        console.error('[DEBUG] openTripDetail: response status', error.response.status);
+        console.error('[DEBUG] openTripDetail: response data', error.response.data);
+        console.error('[DEBUG] openTripDetail: response headers', error.response.headers);
+      } else if (error?.request) {
+        console.error('[DEBUG] openTripDetail: no response, request:', error.request);
+      } else {
+        console.error('[DEBUG] openTripDetail: message', error.message);
+      }
+    }
+    
     setShowTripDetail(true);
   };
 
@@ -230,7 +323,7 @@ export default function CustomerProfilePage() {
     lines.push('');
     lines.push(`Booking ID: ${safeField(booking.bookingId || '')}`);
     lines.push(`Trip: ${safeField(trip.title)}`);
-    lines.push(`Location: ${safeField(trip.location)}`);
+    lines.push(`Destination Type: ${safeField(trip.destination_type || trip.location)}`);
     lines.push(`Date: ${safeField(trip.date)}`);
     lines.push(`Price: ${safeField(trip.price)}`);
     lines.push(`Status: ${safeField(trip.status)}`);
@@ -278,20 +371,20 @@ export default function CustomerProfilePage() {
     } catch (e) { return dateStr; }
   }
 
-  const joinedDate = localUser?.date_joined || localUser?.dateJoined || localUser?.created_at || localUser?.createdAt || localUser?.profile?.created_at || profileDetail?.created_at || localUser?.profile?.createdAt || localUser?.DATE_JOINED || dummyCustomerProfile.joinedDate;
-  const birthDate = localUser?.date_of_birth || localUser?.birth_date || dummyCustomerProfile.dateOfBirth;
+  const joinedDate = localUser?.date_joined || localUser?.dateJoined || localUser?.created_at || localUser?.createdAt || localUser?.profile?.created_at || profileDetail?.created_at || profileDetail?.joinedDate || localUser?.profile?.createdAt || localUser?.DATE_JOINED || '';
+  const birthDate = localUser?.date_of_birth || localUser?.birth_date || profileDetail?.dateOfBirth || '';
 
   const infoRows = [
-    ['Joined Since', joinedDate ? formatDateIndo(joinedDate) : formatDateIndo(dummyCustomerProfile.joinedDate)],
-    ['Email', userEmail],
-    ['Phone Number', localUser?.phone_number || localUser?.phone || dummyCustomerProfile.phone],
-    ['Date of Birth', birthDate ? formatDateIndo(birthDate) : formatDateIndo(dummyCustomerProfile.dateOfBirth)],
-    ['Gender', localUser?.gender || dummyCustomerProfile.gender],
-    ['District / Area', localUser?.district || localUser?.area || dummyCustomerProfile.district],
-    ['City / Regency', localUser?.city || localUser?.regency || dummyCustomerProfile.city],
-    ['Province / State', localUser?.province || localUser?.state || dummyCustomerProfile.province],
-    ['Nationality', localUser?.nationality || dummyCustomerProfile.nationality],
-    ['Language preference', localUser?.language_preference || dummyCustomerProfile.language],
+    ['Joined Since', joinedDate ? formatDateIndo(joinedDate) : '—'],
+    ['Email', userEmail || '—'],
+    ['Phone Number', localUser?.phone_number || localUser?.phone || profileDetail?.phone || '—'],
+    ['Date of Birth', birthDate ? formatDateIndo(birthDate) : '—'],
+    ['Gender', localUser?.gender || profileDetail?.gender || '—'],
+    ['District / Area', localUser?.district || localUser?.area || profileDetail?.district || '—'],
+    ['City / Regency', localUser?.city || localUser?.regency || profileDetail?.city || '—'],
+    ['Province / State', localUser?.province || localUser?.state || profileDetail?.province || '—'],
+    ['Nationality', localUser?.nationality || profileDetail?.nationality || '—'],
+    ['Language preference', localUser?.language_preference || profileDetail?.language || '—'],
   ];
 
   return (
@@ -359,63 +452,101 @@ export default function CustomerProfilePage() {
           </ProfileCard>
         </div>
 
-        {/* Latest Trip Section */}
-        <div style={{ width: 1440, maxWidth: '100%', marginTop: 32 }}>
-          <h2 style={{ color: '#fff', fontFamily: 'Poppins, sans-serif', fontSize: 28, margin: '8px 12px' }}>Latest Trip</h2>
+        {/* Latest Trip Section - Only shown for Customer role */}
+        {(() => {
+          const userRole = profileDetail?.role || localUser?.role || localStorage.getItem('role');
+          const isCustomer = userRole && userRole.toLowerCase() === 'customer';
+          
+          if (!isCustomer) {
+            return null; // Don't show Latest Trip section for non-Customer roles
+          }
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {customerLatestTrips.map(trip => (
-              <div key={trip.id} style={{ display: 'flex', alignItems: 'center', gap: 16, background: 'rgba(245,241,232,0.9)', padding: 18, borderRadius: 12, border: `2px solid ${borderColor}` }}>
-                <div style={{ width: 120, height: 80, borderRadius: 8, overflow: 'hidden', flex: '0 0 120px' }}>
-                  <img src={trip.id === 1 ? tripThumb1 : trip.id === 2 ? tripThumb2 : tripThumb3} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                </div>
+          return (
+            <div style={{ width: 1440, maxWidth: '100%', marginTop: 32 }}>
+              <h2 style={{ color: '#fff', fontFamily: 'Poppins, sans-serif', fontSize: 28, margin: '8px 12px' }}>Latest Trip</h2>
 
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, color: colors.accent5, fontSize: 18 }}>{trip.title}</div>
-                      <div style={{ color: colors.accent5, marginTop: 6 }}>{trip.location}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                {latestTripError && (
+                  <div style={{ 
+                    background: 'rgba(255, 200, 200, 0.9)', 
+                    padding: 18, 
+                    borderRadius: 12, 
+                    border: `2px solid #ff6b6b`,
+                    color: '#721c24',
+                    fontFamily: 'Poppins, sans-serif'
+                  }}>
+                    <strong>Error:</strong> {latestTripError}
+                  </div>
+                )}
+
+                {!latestTripError && customerLatestTrips.length === 0 && (
+                  <div style={{ 
+                    background: 'rgba(245,241,232,0.9)', 
+                    padding: 24, 
+                    borderRadius: 12, 
+                    border: `2px solid ${borderColor}`,
+                    textAlign: 'center',
+                    color: colors.accent5,
+                    fontFamily: 'Poppins, sans-serif'
+                  }}>
+                    No trips found. Start exploring and book your next adventure!
+                  </div>
+                )}
+
+                {customerLatestTrips.map(trip => (
+                  <div key={trip.id} style={{ display: 'flex', alignItems: 'center', gap: 16, background: 'rgba(245,241,232,0.9)', padding: 18, borderRadius: 12, border: `2px solid ${borderColor}` }}>
+                    <div style={{ width: 120, height: 80, borderRadius: 8, overflow: 'hidden', flex: '0 0 120px' }}>
+                      <img src={trip.id === 1 ? tripThumb1 : trip.id === 2 ? tripThumb2 : tripThumb3} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <Button variant="btn1" onClick={() => openTripDetail(trip)} style={{ fontWeight: 500 }}>
-                        <FontAwesomeIcon icon={faEye} style={{ marginRight: 5 }} />
-                        See Details
-                      </Button>
-                      {trip.status === 'Upcoming' ? (
-                        <Button variant="btn3" style={{ fontWeight: 500 }}>
-                          <FontAwesomeIcon icon={faClock} style={{ marginRight: 5 }} />
-                          {trip.status}
-                        </Button>
-                      ) : (
-                        <Button variant="btn2" style={{fontWeight: 500 }}>
-                          <FontAwesomeIcon icon={faCheck} style={{ marginRight: 5 }} />
-                          {trip.status}
-                        </Button>
-                      )}
+
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, color: colors.accent5, fontSize: 18 }}>{trip.title}</div>
+                          <div style={{ color: colors.accent5, marginTop: 6 }}>{trip.destination_type}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <Button variant="btn1" onClick={() => openTripDetail(trip)} style={{ fontWeight: 500 }}>
+                            <FontAwesomeIcon icon={faEye} style={{ marginRight: 5 }} />
+                            See Details
+                          </Button>
+                          {trip.status === 'Upcoming' ? (
+                            <Button variant="btn3" style={{ fontWeight: 500 }}>
+                              <FontAwesomeIcon icon={faClock} style={{ marginRight: 5 }} />
+                              {trip.status}
+                            </Button>
+                          ) : (
+                            <Button variant="btn2" style={{fontWeight: 500 }}>
+                              <FontAwesomeIcon icon={faCheck} style={{ marginRight: 5 }} />
+                              {trip.status}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 18, marginTop: 12, alignItems: 'center' }}>
+                        <div style={{ color: colors.accent5, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <FontAwesomeIcon icon={faCalendarDays} style={{ color: colors.accent5 }} />
+                          <span>{trip.date}</span>
+                        </div>
+
+                        <div style={{ color: colors.accent5, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <FontAwesomeIcon icon={faTag} style={{ color: colors.accent5 }} />
+                          <span>{trip.price}</span>
+                        </div>
+
+                        <div style={{ color: colors.accent5, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <FontAwesomeIcon icon={faMapMarkerAlt} style={{ color: colors.accent5 }} />
+                          <span>{trip.destination_type}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-
-                  <div style={{ display: 'flex', gap: 18, marginTop: 12, alignItems: 'center' }}>
-                    <div style={{ color: colors.accent5, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <FontAwesomeIcon icon={faCalendarDays} style={{ color: colors.accent5 }} />
-                      <span>{trip.date}</span>
-                    </div>
-
-                    <div style={{ color: colors.accent5, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <FontAwesomeIcon icon={faTag} style={{ color: colors.accent5 }} />
-                      <span>{trip.price}</span>
-                    </div>
-
-                    <div style={{ color: colors.accent5, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <FontAwesomeIcon icon={faMapMarkerAlt} style={{ color: colors.accent5 }} />
-                      <span>{trip.tag}</span>
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          );
+        })()}
 
         {/* Edit Profile Modal */}
         {showEditModal && (
@@ -553,17 +684,27 @@ export default function CustomerProfilePage() {
               {
                 (() => {
                   const booking = tripBookingDetails[selectedTrip.id] || {};
+                  
+                  // Only use data from booking API (participant data), no profile fallbacks
                   const passengers = (booking.passengers && booking.passengers.length)
                     ? booking.passengers
-                    : [{
-                        customerName: booking.customerName || booking.customer || booking.customer_name || dummyCustomerProfile.name,
-                        phoneNumber: booking.phoneNumber || booking.phone || dummyCustomerProfile.phone,
-                        gender: booking.gender || dummyCustomerProfile.gender,
-                        nationality: booking.nationality || dummyCustomerProfile.nationality,
-                        dateOfBirth: booking.dateOfBirth || booking.dob || dummyCustomerProfile.dateOfBirth,
-                        pickupPoint: booking.pickupPoint || booking.pickup || '—',
+                    : (booking.customerName ? [{
+                        customerName: booking.customerName,
+                        phoneNumber: booking.phone || '',
+                        gender: booking.gender || '',
+                        nationality: booking.nationality || '',
+                        dateOfBirth: booking.dateOfBirth || '',
+                        pickupPoint: booking.pickupPoint || '—',
                         notes: booking.notes || ''
-                      }];
+                      }] : [{
+                        customerName: '—',
+                        phoneNumber: '—',
+                        gender: '—',
+                        nationality: '—',
+                        dateOfBirth: '—',
+                        pickupPoint: '—',
+                        notes: 'Loading booking details...'
+                      }]);
 
                   const p = passengers[passengerIndex] || passengers[0];
 

@@ -1,5 +1,7 @@
+import json
 import requests
 import logging
+from decimal import Decimal, InvalidOperation
 from django.conf import settings
 from django.http import HttpResponse
 from rest_framework.views import APIView
@@ -7,7 +9,237 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.throttling import UserRateThrottle
 from django.core.cache import cache
 
+from .models import (
+    TravelPlan, TravelDay, Activity, Expense,
+    Trip, TripSchedule, Booking, Transaction,
+)
+
 logger = logging.getLogger(__name__)
+
+
+# =============================================
+# Data-sync helpers
+# =============================================
+
+def _sync_travel_plan(data, user):
+    """Sync a single RencanaPerjalanan (and nested children) from microservice JSON."""
+    try:
+        plan_id = data.get('id')
+        if not plan_id:
+            return
+
+        plan, _ = TravelPlan.objects.update_or_create(
+            id=plan_id,
+            defaults={
+                'user': user,
+                'nama': data.get('nama', ''),
+                'durasi_mulai': data.get('durasi_mulai'),
+                'durasi_selesai': data.get('durasi_selesai'),
+                'anggaran_jumlah': data.get('anggaran_jumlah', 0),
+                'anggaran_mata_uang': data.get('anggaran_mata_uang', 'IDR'),
+            },
+        )
+
+        # Sync nested HariPerjalanan
+        existing_day_ids = set()
+        for day_data in data.get('hariPerjalananList', []):
+            day_id = day_data.get('idHari')
+            if not day_id:
+                continue
+            existing_day_ids.add(str(day_id))
+            day_obj, _ = TravelDay.objects.update_or_create(
+                id=day_id,
+                defaults={
+                    'plan': plan,
+                    'tanggal': day_data.get('tanggal'),
+                },
+            )
+            # Sync nested Aktivitas
+            existing_act_ids = set()
+            for act_data in day_data.get('aktivitasList', []):
+                act_id = act_data.get('idAktivitas')
+                if not act_id:
+                    continue
+                existing_act_ids.add(str(act_id))
+                lokasi = act_data.get('lokasi', {}) or {}
+                Activity.objects.update_or_create(
+                    id=act_id,
+                    defaults={
+                        'day': day_obj,
+                        'waktu_mulai': act_data.get('waktuMulai'),
+                        'waktu_selesai': act_data.get('waktuSelesai'),
+                        'deskripsi': act_data.get('deskripsi', ''),
+                        'lokasi_nama': lokasi.get('namaLokasi', ''),
+                        'lokasi_alamat': lokasi.get('alamat', ''),
+                        'lokasi_latitude': lokasi.get('latitude'),
+                        'lokasi_longitude': lokasi.get('longitude'),
+                    },
+                )
+            # Remove activities that are no longer in the response
+            day_obj.activities.exclude(id__in=existing_act_ids).delete()
+
+        # Remove days that are no longer in the response
+        plan.days.exclude(id__in=existing_day_ids).delete()
+
+        # Sync nested Pengeluaran
+        existing_exp_ids = set()
+        for exp_data in data.get('pengeluaranList', []):
+            exp_id = exp_data.get('idPengeluaran')
+            if not exp_id:
+                continue
+            existing_exp_ids.add(str(exp_id))
+            Expense.objects.update_or_create(
+                id=exp_id,
+                defaults={
+                    'plan': plan,
+                    'deskripsi': exp_data.get('deskripsi', ''),
+                    'tanggal_pengeluaran': exp_data.get('tanggalPengeluaran'),
+                    'biaya_jumlah': exp_data.get('biaya_jumlah', 0),
+                    'biaya_mata_uang': exp_data.get('biaya_mata_uang', 'IDR'),
+                },
+            )
+        plan.expenses.exclude(id__in=existing_exp_ids).delete()
+
+    except Exception:
+        logger.exception("Failed to sync travel plan data")
+
+
+def _sync_trip(data, user):
+    """Sync a single Trip (and schedules) from microservice JSON."""
+    try:
+        trip_id = data.get('trip_id')
+        if not trip_id:
+            return
+
+        itinerary = data.get('itinerary') or {}
+        trip, _ = Trip.objects.update_or_create(
+            trip_id=trip_id,
+            defaults={
+                'user': user,
+                'trip_name': data.get('trip_name', ''),
+                'capacity': data.get('capacity', 0),
+                'is_available': data.get('is_available', True),
+                'guide_name': data.get('guide_name', '') or '',
+                'itinerary_destinations': itinerary.get('destinations'),
+                'itinerary_description': itinerary.get('description', ''),
+            },
+        )
+
+        # Sync schedules
+        schedules = data.get('schedules', [])
+        if schedules:
+            # Replace all schedules for this trip
+            trip.schedules.all().delete()
+            for sched in schedules:
+                TripSchedule.objects.create(
+                    trip=trip,
+                    start_date=sched.get('start_date'),
+                    end_date=sched.get('end_date'),
+                    location=sched.get('location', ''),
+                )
+    except Exception:
+        logger.exception("Failed to sync trip data")
+
+
+def _sync_booking(data, user):
+    """Sync a single Booking from microservice JSON."""
+    try:
+        booking_id = data.get('booking_id')
+        if not booking_id:
+            return
+
+        trip_id_ref = data.get('trip_id', '')
+        trip_obj = Trip.objects.filter(trip_id=trip_id_ref).first() if trip_id_ref else None
+
+        Booking.objects.update_or_create(
+            booking_id=booking_id,
+            defaults={
+                'user': user,
+                'trip': trip_obj,
+                'trip_id_ref': trip_id_ref or '',
+                'participant_name': data.get('participant_name', ''),
+                'status_code': data.get('status_code', 'PENDING'),
+                'status_description': data.get('status_description', ''),
+                'transaction_id_ref': data.get('transaction_id'),
+            },
+        )
+    except Exception:
+        logger.exception("Failed to sync booking data")
+
+
+def _sync_transaction(data, user):
+    """Sync a single Transaction from microservice JSON."""
+    try:
+        txn_id = data.get('transaction_id')
+        if not txn_id:
+            return
+
+        booking_id_ref = data.get('booking_id')
+        booking_obj = Booking.objects.filter(booking_id=booking_id_ref).first() if booking_id_ref else None
+
+        try:
+            amount = Decimal(str(data.get('total_amount', 0)))
+        except (InvalidOperation, TypeError, ValueError):
+            amount = Decimal('0')
+
+        Transaction.objects.update_or_create(
+            transaction_id=txn_id,
+            defaults={
+                'user': user,
+                'booking': booking_obj,
+                'booking_id_ref': booking_id_ref,
+                'total_amount': amount,
+                'payment_status': data.get('payment_status', 'INITIATED'),
+                'payment_type': data.get('payment_type'),
+                'payment_provider': data.get('payment_provider'),
+            },
+        )
+    except Exception:
+        logger.exception("Failed to sync transaction data")
+
+
+def _sync_response(service_name, path, response_body, user):
+    """
+    Parse a successful microservice response and save it into the local Django DB.
+    This runs *after* the response is already returned to the client so that
+    gateway latency is not affected by database writes.
+    """
+    try:
+        data = json.loads(response_body)
+    except (json.JSONDecodeError, TypeError):
+        return
+
+    if service_name == 'planner':
+        # Response can be a single plan or a list of plans
+        if isinstance(data, list):
+            for item in data:
+                _sync_travel_plan(item, user)
+        elif isinstance(data, dict) and data.get('id'):
+            _sync_travel_plan(data, user)
+
+    elif service_name == 'opentrip':
+        path_lower = (path or '').lower().strip('/')
+
+        if path_lower.startswith('trips'):
+            if isinstance(data, list):
+                for item in data:
+                    _sync_trip(item, user)
+            elif isinstance(data, dict) and data.get('trip_id'):
+                _sync_trip(data, user)
+
+        elif path_lower.startswith('bookings'):
+            if isinstance(data, list):
+                for item in data:
+                    _sync_booking(item, user)
+            elif isinstance(data, dict) and data.get('booking_id'):
+                _sync_booking(data, user)
+
+        elif path_lower.startswith('transactions'):
+            if isinstance(data, list):
+                for item in data:
+                    _sync_transaction(item, user)
+            elif isinstance(data, dict) and data.get('transaction_id'):
+                _sync_transaction(data, user)
 
 class GatewayProxyView(APIView):
     """
@@ -23,25 +255,30 @@ class GatewayProxyView(APIView):
         # Initialize headers dict
         self.headers = {}
         
-        # Wrap the raw WSGIRequest into a DRF Request
-        # adds .query_params, .user, .auth, etc.
-        request = self.initialize_request(request, *args, **kwargs)
-        self.request = request
-        self.args = args
-        self.kwargs = kwargs
-        self.format_kwarg = self.get_format_suffix(**kwargs)
-
-        # Trigger DRF's Auth & Permission checks (including throttling)
         try:
-            self.initial(request, *args, **kwargs)
-        except Exception as exc:
-            response = self.handle_exception(exc)
-            self.response = self.finalize_response(request, response, *args, **kwargs)
-            return self.response
+            # Wrap the raw WSGIRequest into a DRF Request
+            # adds .query_params, .user, .auth, etc.
+            request = self.initialize_request(request, *args, **kwargs)
+            self.request = request
+            self.args = args
+            self.kwargs = kwargs
+            self.format_kwarg = self.get_format_suffix(**kwargs)
 
-        # Determine target service
-        service_name = kwargs.get('service')
-        path = kwargs.get('path', '')
+            # Trigger DRF's Auth & Permission checks (including throttling)
+            try:
+                self.initial(request, *args, **kwargs)
+            except Exception as exc:
+                response = self.handle_exception(exc)
+                self.response = self.finalize_response(request, response, *args, **kwargs)
+                return self.response
+
+            # Determine target service
+            service_name = kwargs.get('service')
+            path = kwargs.get('path', '')
+            logger.info(f"[GATEWAY] Processing request: service={service_name}, path={path}, method={request.method}")
+        except Exception as e:
+            logger.exception(f"[GATEWAY] CRITICAL ERROR in dispatch setup: {type(e).__name__}: {str(e)}")
+            return HttpResponse(f"Internal Server Error: {type(e).__name__}", status=500)
 
         # Cache Key
         query_string = request.META.get('QUERY_STRING', '')
@@ -109,18 +346,24 @@ class GatewayProxyView(APIView):
             
             # Security: Always inject user identity from authenticated server-side context
             # This ensures microservices receive verified user information (never trust client)
-            headers['X-User-ID'] = str(request.user.id)
-            headers['X-User-Role'] = request.user.role
+            try:
+                headers['X-User-ID'] = str(request.user.id)
+                headers['X-User-Role'] = request.user.role
+                logger.debug(f"User context: ID={headers['X-User-ID']}, Role={headers['X-User-Role']}")
+            except Exception as e:
+                logger.exception(f"[GATEWAY] ERROR setting user headers: {type(e).__name__}: {str(e)}")
+                raise
             
             # Ensure Authorization header is set
             if 'Authorization' not in headers and request.auth:
                 headers['Authorization'] = f"Bearer {str(request.auth)}"
-            logger.debug(f"Forwarding with user context: ID={headers['X-User-ID']}, Role={headers['X-User-Role']}")
+            logger.debug(f"Forwarding with user context: ID={headers.get('X-User-ID')}, Role={headers.get('X-User-Role')}, Has Auth: {'Authorization' in headers}")
             
             # Explicitly set Content-Type if provided
             if request.content_type:
                 headers['Content-Type'] = request.content_type
 
+            logger.info(f"[GATEWAY] Forwarding {request.method} request to: {url}")
             microservice_response = requests.request(
                 method=request.method,
                 url=url,
@@ -129,6 +372,7 @@ class GatewayProxyView(APIView):
                 params=request.query_params.dict(),
                 timeout=10
             )
+            logger.info(f"[GATEWAY] Received response: status={microservice_response.status_code}")
 
             # Save to Cache if applicable
             if should_cache and microservice_response.status_code == 200:
@@ -162,6 +406,19 @@ class GatewayProxyView(APIView):
                 status=microservice_response.status_code,
                 content_type=microservice_response.headers.get('Content-Type')
             )
+
+            # Sync successful responses to local Django DB
+            if 200 <= microservice_response.status_code < 300:
+                try:
+                    _sync_response(
+                        service_name,
+                        path,
+                        microservice_response.content,
+                        request.user if request.user.is_authenticated else None,
+                    )
+                except Exception:
+                    logger.exception("Data sync to local DB failed (non-blocking)")
+
             self.response = self.finalize_response(request, response, *args, **kwargs)
             return self.response
 

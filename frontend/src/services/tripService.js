@@ -5,9 +5,35 @@
  *   /api/opentrip/bookings/      → open-trip-system bookings
  *   /api/opentrip/transactions/  → open-trip-system transactions
  */
-import api, { opentripAPI } from './api';
+import api, { opentripAPI, plannerAPI } from './api';
 
 // ─── Helpers ────────────────────────────────────────────────
+
+/**
+ * Transform Travel Planner API response to the shape frontend expects
+ */
+function mapTripFromPlanner(raw) {
+  console.log('[mapTripFromPlanner] Mapping planner data:', raw);
+  
+  return {
+    trip_id: raw.id_rencana,
+    trip_name: raw.nama,
+    description: raw.deskripsi || '',
+    location: raw.provinsi || '',
+    destination_type: raw.destination_type || '',
+    price: raw.harga || 0,
+    pax: raw.slot || 0,
+    departure_date: raw.durasi_mulai || null,
+    end_date: raw.durasi_selesai || null,
+    duration: {
+      days: raw.jumlah_hari || 0,
+      nights: raw.jumlah_malam || 0
+    },
+    status: raw.slot_tersedia ? 'Available' : 'Full',
+    created_at: raw.createdAt || null,
+    _plannerRaw: raw,
+  };
+}
 
 /**
  * Transform a raw API trip response into the shape the frontend expects.
@@ -105,8 +131,11 @@ export async function fetchTrip(tripId) {
  */
 export async function fetchLatestTripByEmail(email, role) {
   try {
+    console.log('[fetchLatestTripByEmail] Starting with email:', email, 'role:', role);
+    
     // Validate role - only fetch for Customer role
     if (!role || role.toUpperCase() !== 'CUSTOMER') {
+      console.log('[fetchLatestTripByEmail] Role validation failed, returning null');
       return null;
     }
 
@@ -114,41 +143,114 @@ export async function fetchLatestTripByEmail(email, role) {
       throw new Error('Email is required to fetch latest trip');
     }
 
-    // Call through Django gateway proxy to open-trip-system
-    const res = await api.get('/opentrip/trips/latest', {
-      params: { email }
-    });
+    // NOTE: Trip data is now in Travel Planner service, not open-trip-system
+    // Try fetching from Travel Planner first
+    let openTripData = null;
+    try {
+      console.log('[fetchLatestTripByEmail] Attempting to fetch from opentripAPI /trips/latest');
+      const r = await opentripAPI.get('/trips/latest', { params: { email } });
+      openTripData = r.data || null;
+      console.log('[fetchLatestTripByEmail] Got data from opentripAPI:', openTripData);
+    } catch (e) {
+      console.log('[fetchLatestTripByEmail] opentripAPI failed:', e.response?.status, e.message);
+      // Fallback to gateway route if direct microservice call fails
+      try {
+        console.log('[fetchLatestTripByEmail] Attempting fallback to gateway /opentrip/trips/latest');
+        const r2 = await api.get('/opentrip/trips/latest', { params: { email } });
+        openTripData = r2.data || null;
+        console.log('[fetchLatestTripByEmail] Got data from gateway:', openTripData);
+      } catch (e2) {
+        console.log('[fetchLatestTripByEmail] Gateway also failed:', e2.response?.status, e2.message);
+        // both attempts failed — surface a network/unavailable error
+        if (e.response?.status === 404 || e2?.response?.status === 404) {
+          console.log('[fetchLatestTripByEmail] 404 errors, returning null');
+          return null;
+        }
+        // Don't throw error, just continue to try planner
+        console.log('[fetchLatestTripByEmail] Open-trip-system unavailable, will try planner only');
+      }
+    }
 
-    if (!res.data) {
+    // Try to fetch from Travel Planner data (this is the primary source now)
+    let plannerData = null;
+    try {
+      console.log('[fetchLatestTripByEmail] Attempting to fetch from plannerAPI /perencanaan/trips/latest');
+      const pLatest = await plannerAPI.get('/perencanaan/trips/latest', { params: { email } });
+      plannerData = pLatest.data || null;
+      console.log('[fetchLatestTripByEmail] Got data from plannerAPI:', plannerData);
+    } catch (e) {
+      console.log('[fetchLatestTripByEmail] plannerAPI /trips/latest failed:', e.response?.status, e.message);
+      // If not available, try fetching trip by id from planner
+      try {
+        if (openTripData?.trip_id) {
+          console.log('[fetchLatestTripByEmail] Trying plannerAPI by trip_id:', openTripData.trip_id);
+          const pById = await plannerAPI.get(`/perencanaan/${openTripData.trip_id}`);
+          plannerData = pById.data || null;
+          console.log('[fetchLatestTripByEmail] Got data from plannerAPI by ID:', plannerData);
+        }
+      } catch (e2) {
+        console.log('[fetchLatestTripByEmail] plannerAPI by ID also failed:', e2.response?.status, e2.message);
+        // planner service not available or endpoint missing — ignore
+        plannerData = null;
+      }
+    }
+
+    // If we have planner data but no opentrip data, use planner as primary
+    if (plannerData && !openTripData) {
+      console.log('[fetchLatestTripByEmail] Using plannerData as primary source');
+      return mapTripFromPlanner(plannerData);
+    }
+
+    if (!openTripData && !plannerData) {
+      console.log('[fetchLatestTripByEmail] No data from either service, returning null');
       return null;
     }
 
-    // Map response from open-trip-system to frontend format
-    // Response format: { trip_id, trip_name, departure_date, price }
-    return {
-      trip_id: res.data.trip_id,
-      trip_name: res.data.trip_name,
-      departure_date: res.data.departure_date,
-      price: res.data.price,
-      created_at: res.data.created_at || null,
-      location: res.data.location || '',
-      destination_type: res.data.destination_type || '',
-      status: res.data.status || 'Upcoming',
+    // Check if openTripData is actually planner-formatted (has id_rencana instead of trip_id)
+    // This happens when gateway returns planner data
+    if (openTripData && openTripData.id_rencana) {
+      console.log('[fetchLatestTripByEmail] openTripData is planner-formatted, using mapTripFromPlanner');
+      // Use plannerData if available, otherwise use openTripData (which is planner format from gateway)
+      const dataToMap = plannerData || openTripData;
+      return mapTripFromPlanner(dataToMap);
+    }
+
+    // Merge results: prefer plannerData fields when present (price, schedules, location)
+    const merged = {
+      trip_id: openTripData.trip_id,
+      trip_name: openTripData.trip_name,
+      departure_date: plannerData?.departure_date || openTripData.departure_date || null,
+      price: plannerData?.price ?? openTripData.price ?? null,
+      created_at: plannerData?.created_at || openTripData.created_at || null,
+      location: plannerData?.location || openTripData.location || '',
+      destination_type: plannerData?.destination_type || openTripData.destination_type || '',
+      status: plannerData?.status || openTripData.status || 'Upcoming',
+      _openTripRaw: openTripData,
+      _plannerRaw: plannerData,
     };
+
+    console.log('[fetchLatestTripByEmail] Returning merged data:', merged);
+    return merged;
   } catch (error) {
+    console.error('[fetchLatestTripByEmail] Error caught:', error);
     // Handle different error scenarios
     if (error.response?.status === 404) {
+      console.log('[fetchLatestTripByEmail] 404 error, returning null');
       // No trips found for this user
       return null;
     } else if (error.response?.status === 503) {
+      console.error('[fetchLatestTripByEmail] 503 service unavailable');
       // Service responded but is unavailable
       throw new Error('Open-trip-system service is currently unavailable');
     } else if (!error.response && error.code === 'ECONNREFUSED') {
+      console.error('[fetchLatestTripByEmail] Connection refused');
       // Network error: service cannot be reached
       throw new Error('Open-trip-system service is currently unavailable');
     } else if (error.message) {
+      console.error('[fetchLatestTripByEmail] Throwing error:', error.message);
       throw error;
     } else {
+      console.error('[fetchLatestTripByEmail] Unknown error, throwing generic');
       throw new Error('Failed to fetch latest trip');
     }
   }
@@ -197,10 +299,34 @@ export async function updateItinerary(tripId, destinations, description) {
 // ─── Bookings ───────────────────────────────────────────────
 
 /** Fetch all bookings for the current user */
-export async function fetchBookings() {
+export async function fetchBookings(tripId = null) {
   try {
-    const res = await api.get('/opentrip/bookings/');
-    return Array.isArray(res.data) ? res.data : [];
+    // If tripId provided, call the backend route that returns bookings for that trip
+    if (tripId) {
+      try {
+        const res = await opentripAPI.get(`/bookings/by_trip/${tripId}`);
+        console.debug('[DEBUG] fetchBookings(by_trip): returned from opentripAPI', res?.data);
+        return Array.isArray(res.data) ? res.data : [];
+      } catch (e) {
+        console.warn('[DEBUG] fetchBookings(by_trip): opentripAPI failed, falling back to gateway', e?.message || e);
+        const res2 = await api.get(`/opentrip/bookings/by_trip/${tripId}`);
+        console.debug('[DEBUG] fetchBookings(by_trip): returned from gateway', res2?.data);
+        return Array.isArray(res2.data) ? res2.data : [];
+      }
+    }
+
+    // Prefer direct call to Open Trip microservice (reads open_trip_db)
+    try {
+      const res = await opentripAPI.get('/bookings/');
+      console.debug('[DEBUG] fetchBookings: returned from opentripAPI', res?.data);
+      return Array.isArray(res.data) ? res.data : [];
+    } catch (e) {
+      console.warn('[DEBUG] fetchBookings: opentripAPI failed, falling back to gateway', e?.message || e);
+      // Fallback to gateway
+      const res2 = await api.get('/opentrip/bookings/');
+      console.debug('[DEBUG] fetchBookings: returned from gateway', res2?.data);
+      return Array.isArray(res2.data) ? res2.data : [];
+    }
   } catch (err) {
     // Enhanced debug logging to surface gateway/backend errors in browser console
     console.error('[DEBUG] fetchBookings: request failed', err);

@@ -91,10 +91,15 @@ export default function CustomerProfilePage() {
   // Fetch latest trip from open-trip-system microservice (only for Customer role)
   useEffect(() => {
     const token = localStorage.getItem('authToken');
-    if (!token) return;
+    console.log('[CustomerProfilePage] useEffect loadLatestTrip - token:', token?.substring(0, 50) + '...');
+    if (!token) {
+      console.log('[CustomerProfilePage] No token found, skipping latest trip fetch');
+      return;
+    }
 
     async function loadLatestTrip() {
       try {
+        console.log('[CustomerProfilePage] loadLatestTrip started');
         // Reset error state
         setLatestTripError(null);
 
@@ -102,20 +107,25 @@ export default function CustomerProfilePage() {
         const userEmail = profileDetail?.email || localUser?.email;
         const userRole = profileDetail?.role || localUser?.role || localStorage.getItem('role');
 
+        console.log('[CustomerProfilePage] User email:', userEmail, 'role:', userRole);
+
         if (!userEmail) {
-          console.log('No user email available, skipping latest trip fetch');
+          console.log('[CustomerProfilePage] No user email available, skipping latest trip fetch');
           return;
         }
 
         // Role validation: only fetch for Customer role
         if (!userRole || userRole.toLowerCase() !== 'customer') {
-          console.log(`User role is "${userRole}", not fetching latest trip (only for Customer role)`);
+          console.log(`[CustomerProfilePage] User role is "${userRole}", not fetching latest trip (only for Customer role)`);
           setCustomerLatestTrips([]);
           return;
         }
 
+        console.log('[CustomerProfilePage] Calling fetchLatestTripByEmail...');
         // Fetch latest trip from open-trip-system microservice
         const latestTrip = await fetchLatestTripByEmail(userEmail, userRole);
+
+        console.log('[CustomerProfilePage] fetchLatestTripByEmail returned:', latestTrip);
 
         if (latestTrip) {
           // Map the response to frontend format
@@ -137,16 +147,18 @@ export default function CustomerProfilePage() {
             tag: latestTrip.destination_type || latestTrip.location || latestTrip.status || 'Upcoming',
           };
 
+          console.log('[CustomerProfilePage] Mapped trip:', mappedTrip);
           setCustomerLatestTrips([mappedTrip]);
 
           // Don't pre-fill booking details with profile data
           // Let openTripDetail fetch the real participant data from API
         } else {
+          console.log('[CustomerProfilePage] No trip data returned, setting empty array');
           // No trips found for this user
           setCustomerLatestTrips([]);
         }
       } catch (error) {
-        console.error('Failed to fetch latest trip:', error);
+        console.error('[CustomerProfilePage] Failed to fetch latest trip:', error);
         setLatestTripError(error.message || 'Failed to load latest trip');
         setCustomerLatestTrips([]);
       }
@@ -256,33 +268,80 @@ export default function CustomerProfilePage() {
     // Fetch booking details for this trip
     try {
       console.log('[DEBUG] Fetching bookings for trip:', trip);
-      const bookings = await fetchBookings();
+      const bookings = await fetchBookings(trip.trip_id || trip.id || trip.tripId);
       console.log('[DEBUG] Received bookings:', bookings);
       
-      // Find booking for this trip (convert to string for comparison since API returns string IDs)
+      // Find booking for this trip using several possible booking shapes
       const booking = bookings.find(b => {
         console.log('[DEBUG] Checking booking:', b, 'against trip_id:', trip.trip_id);
-        return String(b.trip_id) === String(trip.trip_id) || String(b.trip_id) === String(trip.id);
+
+        const bookingTripCandidates = new Set();
+        if (b == null) return false;
+        if (b.trip_id) bookingTripCandidates.add(String(b.trip_id));
+        if (b.tripId) bookingTripCandidates.add(String(b.tripId));
+        if (b.booking_trip_id) bookingTripCandidates.add(String(b.booking_trip_id));
+        if (b.trip && typeof b.trip === 'string') bookingTripCandidates.add(String(b.trip));
+        if (b.trip && typeof b.trip === 'object') {
+          if (b.trip.trip_id) bookingTripCandidates.add(String(b.trip.trip_id));
+          if (b.trip.id) bookingTripCandidates.add(String(b.trip.id));
+        }
+
+        const tripIdsToCompare = new Set([
+          trip.trip_id,
+          trip.id,
+          trip.tripId,
+        ].filter(Boolean).map(String));
+
+        for (const tId of tripIdsToCompare) {
+          if (bookingTripCandidates.has(tId)) return true;
+        }
+
+        return false;
       });
-      
+
       console.log('[DEBUG] Found booking:', booking);
-      
-      if (booking && booking.passenger) {
-        console.log('[DEBUG] Setting booking details with passenger:', booking.passenger);
-        // Use participant data from booking
-        setTripBookingDetails(prev => ({
-          ...prev,
-          [trip.id]: {
-            bookingId: booking.booking_id,
-            customerName: booking.passenger.name,
-            phone: booking.passenger.phone_number,
-            dateOfBirth: booking.passenger.date_of_birth,
-            gender: booking.passenger.gender,
-            nationality: booking.passenger.nationality,
-            pickupPoint: booking.passenger.pick_up_point,
-            notes: booking.passenger.notes
-          }
-        }));
+
+      if (booking) {
+        // Helper to normalize a passenger object into UI-friendly keys
+        const normalizePassenger = (p) => ({
+          customerName: p?.name || p?.customerName || p?.full_name || '',
+          phoneNumber: p?.phone_number || p?.phone || p?.contact || '',
+          dateOfBirth: p?.date_of_birth || p?.dob || p?.birth_date || '',
+          gender: p?.gender || '',
+          nationality: p?.nationality || '',
+          pickupPoint: p?.trip_pickup_id || p?.pickup_point || p?.pickup || '',
+          notes: p?.notes || ''
+        });
+
+        // Collect passengers from various payload shapes and normalize them
+        let rawPassengers = [];
+        if (Array.isArray(booking.passengers) && booking.passengers.length) rawPassengers = booking.passengers;
+        else if (Array.isArray(booking.passenger) && booking.passenger.length) rawPassengers = booking.passenger;
+        else if (booking.passenger && typeof booking.passenger === 'object') rawPassengers = [booking.passenger];
+        else if (booking.participant && typeof booking.participant === 'object') rawPassengers = [booking.participant];
+
+        const normalizedPassengers = rawPassengers.map(normalizePassenger);
+
+        if (normalizedPassengers.length) {
+          console.log('[DEBUG] Setting booking details with normalized passengers:', normalizedPassengers);
+          const first = normalizedPassengers[0];
+          setTripBookingDetails(prev => ({
+            ...prev,
+            [trip.id]: {
+              bookingId: booking.booking_id || booking.id || booking.bookingId || null,
+              customerName: first.customerName,
+              phone: first.phoneNumber,
+              dateOfBirth: first.dateOfBirth,
+              gender: first.gender,
+              nationality: first.nationality,
+              pickupPoint: first.pickupPoint,
+              notes: first.notes || booking.notes || '',
+              passengers: normalizedPassengers
+            }
+          }));
+        } else {
+          console.warn('[DEBUG] Booking found but no passenger data present in booking payload');
+        }
       } else {
         console.warn('[DEBUG] No booking found or missing passenger data');
       }
@@ -503,7 +562,7 @@ export default function CustomerProfilePage() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
                           <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, color: colors.accent5, fontSize: 18 }}>{trip.title}</div>
-                          <div style={{ color: colors.accent5, marginTop: 6 }}>{trip.destination_type}</div>
+                          <div style={{ color: colors.accent5, marginTop: 6 }}>{trip.location}</div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                           <Button variant="btn1" onClick={() => openTripDetail(trip)} style={{ fontWeight: 500 }}>
@@ -674,7 +733,7 @@ export default function CustomerProfilePage() {
 
         {/* Trip Detail Modal */}
         {showTripDetail && selectedTrip && (
-          <Modal open={showTripDetail} onClose={() => setShowTripDetail(false)} title={`Booking Details (${selectedTrip.title})`}>
+          <Modal open={showTripDetail} onClose={() => setShowTripDetail(false)} title={`Booking Details`}>
 
             <div style={{ position: 'relative' }}>
               {/* top-left close button removed per request */}

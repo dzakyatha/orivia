@@ -7,7 +7,7 @@ import Modal, { modalStyles } from '../../components/ui/Modal.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPen, faEye, faClock, faCheck, faCalendarDays, faTag, faMapMarkerAlt, faXmark, faDownload } from '@fortawesome/free-solid-svg-icons';
 import { fetchProfile, updateProfile } from '../../services/profileService';
-import { fetchLatestTripByEmail, fetchBookings } from '../../services/tripService';
+import { fetchLatestTripByEmail, fetchBookings, fetchPickupPoints } from '../../services/tripService';
 import countryList from 'react-select-country-list';
 import profileImage from '../../assets/images/jeki.jpg';
 import tripThumb1 from '../../assets/images/landingpage2.png';
@@ -271,6 +271,20 @@ export default function CustomerProfilePage() {
       const bookings = await fetchBookings(trip.trip_id || trip.id || trip.tripId);
       console.log('[DEBUG] Received bookings:', bookings);
       
+      // Fetch pickup points for this trip
+      console.log('[DEBUG] Fetching pickup points for trip:', trip.trip_id);
+      const pickupPoints = await fetchPickupPoints(trip.trip_id);
+      console.log('[DEBUG] Received pickup points:', pickupPoints);
+      
+      // Create a map of trip_pickup_id -> lokasi_jemput
+      const pickupMap = {};
+      pickupPoints.forEach(pp => {
+        if (pp.trip_pickup_id && pp.lokasi_jemput) {
+          pickupMap[pp.trip_pickup_id] = pp.lokasi_jemput;
+        }
+      });
+      console.log('[DEBUG] Pickup map:', pickupMap);
+      
       // Find booking for this trip using several possible booking shapes
       const booking = bookings.find(b => {
         console.log('[DEBUG] Checking booking:', b, 'against trip_id:', trip.trip_id);
@@ -302,23 +316,45 @@ export default function CustomerProfilePage() {
       console.log('[DEBUG] Found booking:', booking);
 
       if (booking) {
-        // Helper to normalize a passenger object into UI-friendly keys
-        const normalizePassenger = (p) => ({
-          customerName: p?.name || p?.customerName || p?.full_name || '',
-          phoneNumber: p?.phone_number || p?.phone || p?.contact || '',
-          dateOfBirth: p?.date_of_birth || p?.dob || p?.birth_date || '',
-          gender: p?.gender || '',
-          nationality: p?.nationality || '',
-          pickupPoint: p?.trip_pickup_id || p?.pickup_point || p?.pickup || '',
-          notes: p?.notes || ''
-        });
-
-        // Collect passengers from various payload shapes and normalize them
+        // Collect passengers from various payload shapes
         let rawPassengers = [];
         if (Array.isArray(booking.passengers) && booking.passengers.length) rawPassengers = booking.passengers;
         else if (Array.isArray(booking.passenger) && booking.passenger.length) rawPassengers = booking.passenger;
         else if (booking.passenger && typeof booking.passenger === 'object') rawPassengers = [booking.passenger];
         else if (booking.participant && typeof booking.participant === 'object') rawPassengers = [booking.participant];
+
+        console.log('[DEBUG] Raw passengers before normalization:', rawPassengers);
+
+        // Helper to normalize a passenger object into UI-friendly keys
+        const normalizePassenger = (p) => {
+          // Try multiple field name variations for pickup point ID
+          const pickupId = p?.pick_up_point || p?.trip_pickup_id || p?.tripPickupId || 
+                          p?.pickup_id || p?.pickupId || p?.pickup_point || p?.pickupPoint || p?.pickup || '';
+          
+          console.log('[DEBUG] Passenger object:', p);
+          console.log('[DEBUG] Extracted pickupId:', pickupId);
+          console.log('[DEBUG] Pickup map lookup result:', pickupMap[pickupId]);
+          
+          // Get pickup label from map, fallback to ID if not found, then to '—' if empty
+          let pickupLabel = '—';
+          if (pickupId && pickupMap[pickupId]) {
+            pickupLabel = pickupMap[pickupId];
+          } else if (pickupId && pickupId.trim() !== '') {
+            pickupLabel = pickupId; // Show the UUID if not found in map
+          }
+          
+          console.log('[DEBUG] Final pickupLabel:', pickupLabel);
+          
+          return {
+            customerName: p?.name || p?.customerName || p?.full_name || p?.first_name || '',
+            phoneNumber: p?.phone_number || p?.phone || p?.contact || '',
+            dateOfBirth: p?.date_of_birth || p?.dob || p?.birth_date || '',
+            gender: p?.gender || '',
+            nationality: p?.nationality || '',
+            pickupPoint: pickupLabel,
+            notes: p?.notes || ''
+          };
+        };
 
         const normalizedPassengers = rawPassengers.map(normalizePassenger);
 

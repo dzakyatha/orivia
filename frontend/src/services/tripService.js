@@ -174,8 +174,8 @@ export async function fetchLatestTripByEmail(email, role) {
     // Try to fetch from Travel Planner data (this is the primary source now)
     let plannerData = null;
     try {
-      console.log('[fetchLatestTripByEmail] Attempting to fetch from plannerAPI /perencanaan/trips/latest');
-      const pLatest = await plannerAPI.get('/perencanaan/trips/latest', { params: { email } });
+      console.log('[fetchLatestTripByEmail] Attempting to fetch from plannerAPI /trips/latest');
+      const pLatest = await plannerAPI.get('/trips/latest', { params: { email } });
       plannerData = pLatest.data || null;
       console.log('[fetchLatestTripByEmail] Got data from plannerAPI:', plannerData);
     } catch (e) {
@@ -184,7 +184,7 @@ export async function fetchLatestTripByEmail(email, role) {
       try {
         if (openTripData?.trip_id) {
           console.log('[fetchLatestTripByEmail] Trying plannerAPI by trip_id:', openTripData.trip_id);
-          const pById = await plannerAPI.get(`/perencanaan/${openTripData.trip_id}`);
+          const pById = await plannerAPI.get(`/${openTripData.trip_id}`);
           plannerData = pById.data || null;
           console.log('[fetchLatestTripByEmail] Got data from plannerAPI by ID:', plannerData);
         }
@@ -400,6 +400,26 @@ export async function refundPayment(transactionId) {
   return api.post(`/opentrip/transactions/${transactionId}/refund`);
 }
 
+/**
+ * Fetch pickup points for a specific trip by trip/plan ID
+ * Uses the authenticated endpoint through gateway: GET /api/planner/{rencana_id}/pickup-points
+ * Gateway forwards to: GET /api/perencanaan/{rencana_id}/pickup-points
+ * 
+ * @param {string} tripId - The trip/plan ID (id_rencana)
+ * @returns {Array} Array of pickup points with trip_pickup_id and lokasi_jemput
+ */
+export async function fetchPickupPoints(tripId) {
+  try {
+    console.log('[fetchPickupPoints] Fetching pickup points for trip:', tripId);
+    const response = await plannerAPI.get(`/${tripId}/pickup-points`);
+    console.log('[fetchPickupPoints] Received pickup points:', response.data);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    console.error('[fetchPickupPoints] Error fetching pickup points:', error.response?.status, error.message);
+    return [];
+  }
+}
+
 export default {
   fetchTrips,
   fetchTrip,
@@ -420,4 +440,5 @@ export default {
   confirmPayment,
   refundPayment,
   fetchLatestTrip,
+  fetchPickupPoints,
 };

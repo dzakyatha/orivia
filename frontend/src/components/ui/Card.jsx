@@ -427,7 +427,11 @@ export const GridTripCard = ({ trip = {}, onClick, style = {} }) => {
 			}}
 		>
 			<div style={imageStyle}>
-				<img src={trip.image} alt={trip.name} style={img} />
+				{trip.image ? (
+					<img src={trip.image} alt={trip.name} style={img} />
+				) : (
+					<div style={{ ...img, backgroundColor: '#F2F2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>No Image</div>
+				)}
 				<div style={badgeStyle}>{trip.destinationType || trip.type || ''}</div>
 			</div>
 
@@ -443,22 +447,27 @@ export const GridTripCard = ({ trip = {}, onClick, style = {} }) => {
 					<div style={{ fontSize: fontSize.xs, color: colors.text }}>
 						<FontAwesomeIcon icon={faCalendar} size="sm" style={{ marginRight: spacing.xs }} />
 						{(function(){
-							const scheduleCount = tripSchedules ? tripSchedules.filter(s => s.tripId === trip.tripId).length : 0;
-							
-							if (scheduleCount > 0) {
-								return `${scheduleCount} schedule${scheduleCount > 1 ? 's' : ''}`;
-							}
-							
-							const ranges = getDateRanges(trip);
-							if (Array.isArray(trip.date)) {
-								return `${ranges.length} dates`;
-							}
-							if (ranges.length > 0) {
-								const r = ranges[0];
-								return formatDateRange(r.start, r.end, '');
-							}
-							const [s,e] = getStartEnd(trip);
-							return formatDateRange(s,e, trip.date && typeof trip.date === 'string' ? trip.date : '');
+								const scheduleCount = tripSchedules ? tripSchedules.filter(s => s.tripId === trip.tripId).length : 0;
+
+								if (scheduleCount > 0) {
+									return `${scheduleCount} schedule${scheduleCount > 1 ? 's' : ''}`;
+								}
+
+								// Prefer explicit start/end provided by planner DB
+								if (trip.startDate || trip.endDate) {
+									return formatDateRange(trip.startDate, trip.endDate, '');
+								}
+
+								const ranges = getDateRanges(trip);
+								if (Array.isArray(trip.date)) {
+									return `${ranges.length} dates`;
+								}
+								if (ranges.length > 0) {
+									const r = ranges[0];
+									return formatDateRange(r.start, r.end, '');
+								}
+								const [s,e] = getStartEnd(trip);
+								return formatDateRange(s,e, trip.date && typeof trip.date === 'string' ? trip.date : '');
 						})()}
 					</div>
 				</div>

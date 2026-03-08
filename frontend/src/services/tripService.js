@@ -170,6 +170,55 @@ export async function fetchPlannerTrips() {
   return { trips: mapped, tripSchedules: buildSchedules(mapped) };
 }
 
+/**
+ * Fetch a single trip detail by ID from Travel Planner service
+ * Returns comprehensive trip data including images, pickup points, includes, and rundowns
+ * @param {string} tripId - The trip UUID
+ * @returns {Object} Trip detail with all related data
+ */
+export async function fetchPlannerTripDetail(tripId) {
+  try {
+    console.log('[fetchPlannerTripDetail] Fetching trip ID:', tripId);
+    const res = await api.get(`/planner/trips/${tripId}`);
+    const raw = res.data;
+    
+    console.log('[fetchPlannerTripDetail] Received data:', raw);
+    
+    // Return the trip data with all nested relationships
+    return {
+      tripId: raw.tripId || raw.trip_id,
+      name: raw.name || raw.trip_name,
+      description: raw.description || raw.deskripsi || '',
+      price: raw.price || raw.harga || 0,
+      location: {
+        state: raw.location?.state || raw.provinsi || '',
+        country: raw.location?.country || raw.negara || ''
+      },
+      provinsi: raw.provinsi,
+      negara: raw.negara,
+      duration: raw.duration || {
+        days: raw.jumlah_hari || 0,
+        nights: raw.jumlah_malam || 0
+      },
+      jumlah_hari: raw.jumlah_hari,
+      jumlah_malam: raw.jumlah_malam,
+      startDate: raw.startDate,
+      endDate: raw.endDate,
+      slot: raw.slot,
+      slot_tersedia: raw.slot_tersedia,
+      destinationType: raw.destinationType || raw.destination_type || '',
+      images: raw.images || [],
+      pickup_points: raw.pickup_points || [],
+      includes: raw.includes || [],
+      rundowns: raw.rundowns || {},
+      _raw: raw
+    };
+  } catch (error) {
+    console.error('[fetchPlannerTripDetail] Error fetching trip:', error);
+    throw error;
+  }
+}
+
 /** Fetch a single trip by ID (public, via gateway) */
 export async function fetchTrip(tripId) {
   const res = await api.get(`/opentrip/trips/${tripId}`);
@@ -405,6 +454,17 @@ export async function fetchBooking(bookingId) {
   return res.data;
 }
 
+/** Fetch all bookings for a specific trip_id */
+export async function fetchBookingsByTrip(tripId) {
+  try {
+    const res = await api.get(`/opentrip/bookings/by_trip/${tripId}`);
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (err) {
+    console.error('[fetchBookingsByTrip] Error fetching bookings:', err);
+    return [];
+  }
+}
+
 /** Create a booking */
 export async function createBooking(tripId, participantName, contact, address) {
   return api.post('/opentrip/bookings/', {
@@ -476,6 +536,30 @@ export async function fetchPickupPoints(tripId) {
   }
 }
 
+/**
+ * Update a trip in the Travel Planner service
+ * Uses the authenticated endpoint through gateway: PUT /api/planner/trips/{tripId}
+ * Gateway forwards to: PUT /api/perencanaan/trips/{tripId}
+ * 
+ * @param {string} tripId - The trip ID (id_rencana)
+ * @param {Object} updateData - Object containing fields to update
+ * @returns {Object} Updated trip data
+ */
+export async function updatePlannerTrip(tripId, updateData) {
+  try {
+    console.log('[updatePlannerTrip] Updating trip:', tripId, 'with data:', updateData);
+    const response = await api.put(`/planner/trips/${tripId}`, updateData);
+    console.log('[updatePlannerTrip] Trip updated successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[updatePlannerTrip] Error updating trip:', error.response?.status, error.message);
+    if (error.response?.data) {
+      console.error('[updatePlannerTrip] Error details:', error.response.data);
+    }
+    throw error;
+  }
+}
+
 export default {
   fetchTrips,
   fetchTrip,
@@ -497,4 +581,5 @@ export default {
   refundPayment,
   fetchLatestTrip,
   fetchPickupPoints,
+  updatePlannerTrip,
 };

@@ -202,9 +202,14 @@ export const TripTabs = () => {
   const navigate = useNavigate();
   const isEdit = location.pathname === '/trip/edit';
   const isParticipant = location.pathname === '/trip/participant';
+  
+  // Preserve tripId query parameter when switching tabs
+  const params = new URLSearchParams(location.search);
+  const tripId = params.get('tripId');
+  const queryString = tripId ? `?tripId=${tripId}` : '';
 
   const tabBtn = (label, path, active) => ({
-    onClick: () => navigate(path),
+    onClick: () => navigate(path + queryString),
     style: {
       cursor: 'pointer',
       background: 'transparent',

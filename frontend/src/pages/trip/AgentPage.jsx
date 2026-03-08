@@ -20,7 +20,24 @@ export default function AgentTripPage() {
       try {
         const res = await fetchPlannerTrips();
         if (!mounted) return;
-        setTrips(res.trips || []);
+        
+        // Ensure all trips have valid tripId before setting state
+        const validTrips = (res.trips || []).filter(trip => {
+          const hasValidId = trip.tripId || trip.trip_id || trip.id_rencana;
+          if (!hasValidId) {
+            console.warn('[AgentPage] Trip missing ID, filtering out:', trip);
+          }
+          return hasValidId;
+        }).map(trip => {
+          // Normalize tripId field to ensure consistency
+          return {
+            ...trip,
+            tripId: trip.tripId || trip.trip_id || trip.id_rencana
+          };
+        });
+        
+        console.log('[AgentPage] Loaded trips:', validTrips.length, validTrips);
+        setTrips(validTrips);
       } catch (e) {
         console.error('Failed to fetch planner trips', e);
         if (mounted) setTrips([]);
@@ -111,14 +128,31 @@ export default function AgentTripPage() {
           <section style={{ ...styles.grid, width: '100%', overflow: 'visible', marginTop: spacing.md }}>
             {loading ? (
               <div style={{ color: colors.accent5 }}>Loading trips...</div>
+            ) : trips.length === 0 ? (
+              <div style={{ color: colors.accent5 }}>No trips available. Create your first trip!</div>
             ) : (
-              trips.map(trip => (
-                <GridTripCard
-                  key={trip.tripId}
-                  trip={trip}
-                  onClick={() => navigate(`/trip/edit?tripId=${trip.tripId}`)}
-                />
-              ))
+              trips.map(trip => {
+                const tripId = trip.tripId || trip.trip_id || trip.id_rencana;
+                return (
+                  <GridTripCard
+                    key={tripId}
+                    trip={trip}
+                    onClick={() => {
+                      console.log('[AgentPage] Card clicked. Trip:', { 
+                        tripId, 
+                        name: trip.name, 
+                        trip_name: trip.trip_name 
+                      });
+                      if (!tripId) {
+                        console.error('[AgentPage] Trip ID is missing!', trip);
+                        alert('Cannot open trip: Trip ID is missing');
+                        return;
+                      }
+                      navigate(`/trip/edit?tripId=${tripId}`);
+                    }}
+                  />
+                );
+              })
             )}
           </section>
         </div>

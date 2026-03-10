@@ -56,10 +56,10 @@ export default function TripEditPage() {
   const [tripSlot, setTripSlot] = useState(() => {
     // Get first schedule's slot for this trip
     const firstSchedule = tripSchedules.find(s => s.tripId === defaultTrip.tripId);
-    return (firstSchedule?.slotAvailable != null ? String(firstSchedule.slotAvailable) : '8');
+    return firstSchedule?.slotAvailable != null ? String(firstSchedule.slotAvailable) : '';
   });
-  const [tripDay, setTripDay] = useState(() => defaultTrip.duration?.days ? String(defaultTrip.duration.days) : '3');
-  const [tripNight, setTripNight] = useState(() => defaultTrip.duration?.nights ? String(defaultTrip.duration.nights) : '2');
+  const [tripDay, setTripDay] = useState(() => defaultTrip.duration?.days ? String(defaultTrip.duration.days) : '');
+  const [tripNight, setTripNight] = useState(() => defaultTrip.duration?.nights ? String(defaultTrip.duration.nights) : '');
   const [tripDestType, setTripDestType] = useState(() => defaultTrip.destinationType || defaultTrip.type || 'Island Exploration');
   const [tripDescription, setTripDescription] = useState(() => defaultTrip.description || 'Labuan Bajo, located at the eastern end of Rinca Flores, Manggarai, is famous for its stunning beauty and unique wildlife. The island is also home to the prehistoric Komodo dragons and monitor lizards. You can enjoy attractions for the local heritage and cultural aspects of the surrounding area.');
   const MAX_IMAGES = 4;
@@ -167,9 +167,18 @@ export default function TripEditPage() {
         
         setTripProvince(data.location?.state || data.provinsi || 'East Nusa Tenggara, Indonesia');
         setTripCountry(data.location?.country || data.negara || 'Indonesia');
-        setTripSlot(String(data.slot || data.slot_tersedia || 8));
-        setTripDay(String(data.duration?.days || data.jumlah_hari || 3));
-        setTripNight(String(data.duration?.nights || data.jumlah_malam || 2));
+        {
+          const slotVal = data.slot ?? data.slot_tersedia;
+          setTripSlot(slotVal != null ? String(slotVal) : '');
+        }
+        {
+          const daysVal = data.duration?.days ?? data.jumlah_hari;
+          setTripDay(daysVal != null ? String(daysVal) : '');
+        }
+        {
+          const nightsVal = data.duration?.nights ?? data.jumlah_malam;
+          setTripNight(nightsVal != null ? String(nightsVal) : '');
+        }
         setTripDestType(data.destinationType || data.destination_type || 'Island Exploration');
         setTripDescription(data.description || data.deskripsi || 'Labuan Bajo, located at the eastern end of Rinca Flores, Manggarai, is famous for its stunning beauty and unique wildlife.');
         

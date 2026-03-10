@@ -91,15 +91,16 @@ export default function CustomerProfilePage() {
   // Fetch latest trip from open-trip-system microservice (only for Customer role)
   useEffect(() => {
     const token = localStorage.getItem('authToken');
-    console.log('[CustomerProfilePage] useEffect loadLatestTrip - token:', token?.substring(0, 50) + '...');
+    // Avoid printing auth tokens to console. Log presence in dev only.
+    if (process.env.NODE_ENV === 'development') console.log('[CustomerProfilePage] useEffect loadLatestTrip - token present');
     if (!token) {
-      console.log('[CustomerProfilePage] No token found, skipping latest trip fetch');
+      if (process.env.NODE_ENV === 'development') console.log('[CustomerProfilePage] No token found, skipping latest trip fetch');
       return;
     }
 
     async function loadLatestTrip() {
       try {
-        console.log('[CustomerProfilePage] loadLatestTrip started');
+        if (process.env.NODE_ENV === 'development') console.log('[CustomerProfilePage] loadLatestTrip started');
         // Reset error state
         setLatestTripError(null);
 
@@ -107,30 +108,27 @@ export default function CustomerProfilePage() {
         const userEmail = profileDetail?.email || localUser?.email;
         const userRole = profileDetail?.role || localUser?.role || localStorage.getItem('role');
 
-        console.log('[CustomerProfilePage] User email:', userEmail, 'role:', userRole);
+        if (process.env.NODE_ENV === 'development') console.log('[CustomerProfilePage] User email and role available');
 
         if (!userEmail) {
-          console.log('[CustomerProfilePage] No user email available, skipping latest trip fetch');
+          if (process.env.NODE_ENV === 'development') console.log('[CustomerProfilePage] No user email available, skipping latest trip fetch');
           return;
         }
 
         // Role validation: only fetch for Customer role
         if (!userRole || userRole.toLowerCase() !== 'customer') {
-          console.log(`[CustomerProfilePage] User role is "${userRole}", not fetching latest trip (only for Customer role)`);
+          if (process.env.NODE_ENV === 'development') console.log(`[CustomerProfilePage] User role is "${userRole}", not fetching latest trip (only for Customer role)`);
           setCustomerLatestTrips([]);
           return;
         }
 
-        console.log('[CustomerProfilePage] Calling fetchLatestTripByEmail...');
+        if (process.env.NODE_ENV === 'development') console.log('[CustomerProfilePage] Calling fetchLatestTripByEmail...');
         // Fetch latest trip from open-trip-system microservice
         const latestTrip = await fetchLatestTripByEmail(userEmail, userRole);
 
-        console.log('[CustomerProfilePage] fetchLatestTripByEmail returned:', latestTrip);
+        if (process.env.NODE_ENV === 'development') console.log('[CustomerProfilePage] fetchLatestTripByEmail returned (dev only)');
 
         if (latestTrip) {
-          // Map the response to frontend format
-          // Backend uses: trip_id, trip_name, departure_date, price
-          // Frontend expects: id, title, date, price (keeping the mapping for display)
           const mappedTrip = {
             id: latestTrip.trip_id,
             trip_id: latestTrip.trip_id,
@@ -139,26 +137,25 @@ export default function CustomerProfilePage() {
             departure_date: latestTrip.departure_date,
             date: latestTrip.departure_date, // for backward compatibility in UI
             price: latestTrip.price ? `Rp ${latestTrip.price.toLocaleString('id-ID')}` : '',
-            // prefer destination_type (new) and keep location for compatibility
             destination_type: latestTrip.destination_type || '',
             location: latestTrip.location || '',
             status: latestTrip.status || 'Upcoming',
-            // legacy tag fallback: prefer destination_type, then location, then status
             tag: latestTrip.destination_type || latestTrip.location || latestTrip.status || 'Upcoming',
           };
 
-          console.log('[CustomerProfilePage] Mapped trip:', mappedTrip);
+          if (process.env.NODE_ENV === 'development') console.log('[CustomerProfilePage] Mapped trip (dev only)');
           setCustomerLatestTrips([mappedTrip]);
 
           // Don't pre-fill booking details with profile data
           // Let openTripDetail fetch the real participant data from API
         } else {
-          console.log('[CustomerProfilePage] No trip data returned, setting empty array');
+          if (process.env.NODE_ENV === 'development') console.log('[CustomerProfilePage] No trip data returned, setting empty array');
           // No trips found for this user
           setCustomerLatestTrips([]);
         }
       } catch (error) {
-        console.error('[CustomerProfilePage] Failed to fetch latest trip:', error);
+        // Log only the error message to avoid full payload exposure
+        console.error('[CustomerProfilePage] Failed to fetch latest trip:', error?.message || error);
         setLatestTripError(error.message || 'Failed to load latest trip');
         setCustomerLatestTrips([]);
       }
@@ -267,15 +264,15 @@ export default function CustomerProfilePage() {
     
     // Fetch booking details for this trip
     try {
-      console.log('[DEBUG] Fetching bookings for trip:', trip);
+      if (process.env.NODE_ENV === 'development') console.log('[DEBUG] Fetching bookings for trip (dev only)');
       const bookings = await fetchBookings(trip.trip_id || trip.id || trip.tripId);
-      console.log('[DEBUG] Received bookings:', bookings);
-      
+      if (process.env.NODE_ENV === 'development') console.log('[DEBUG] Received bookings (dev only)');
+
       // Fetch pickup points for this trip
-      console.log('[DEBUG] Fetching pickup points for trip:', trip.trip_id);
+      if (process.env.NODE_ENV === 'development') console.log('[DEBUG] Fetching pickup points for trip (dev only)');
       const pickupPoints = await fetchPickupPoints(trip.trip_id);
-      console.log('[DEBUG] Received pickup points:', pickupPoints);
-      
+      if (process.env.NODE_ENV === 'development') console.log('[DEBUG] Received pickup points (dev only)');
+
       // Create a map of trip_pickup_id -> lokasi_jemput
       const pickupMap = {};
       pickupPoints.forEach(pp => {
@@ -283,11 +280,11 @@ export default function CustomerProfilePage() {
           pickupMap[pp.trip_pickup_id] = pp.lokasi_jemput;
         }
       });
-      console.log('[DEBUG] Pickup map:', pickupMap);
-      
+      if (process.env.NODE_ENV === 'development') console.log('[DEBUG] Pickup map keys (dev only):', Object.keys(pickupMap).length);
+
       // Find booking for this trip using several possible booking shapes
       const booking = bookings.find(b => {
-        console.log('[DEBUG] Checking booking:', b, 'against trip_id:', trip.trip_id);
+        if (process.env.NODE_ENV === 'development') console.log('[DEBUG] Checking booking candidate IDs against trip_id:', trip.trip_id);
 
         const bookingTripCandidates = new Set();
         if (b == null) return false;
@@ -313,7 +310,7 @@ export default function CustomerProfilePage() {
         return false;
       });
 
-      console.log('[DEBUG] Found booking:', booking);
+      if (process.env.NODE_ENV === 'development') console.log('[DEBUG] Found booking id (dev only):', booking?.booking_id || booking?.id || booking?.bookingId);
 
       if (booking) {
         // Collect passengers from various payload shapes
@@ -323,17 +320,14 @@ export default function CustomerProfilePage() {
         else if (booking.passenger && typeof booking.passenger === 'object') rawPassengers = [booking.passenger];
         else if (booking.participant && typeof booking.participant === 'object') rawPassengers = [booking.participant];
 
-        console.log('[DEBUG] Raw passengers before normalization:', rawPassengers);
+        if (process.env.NODE_ENV === 'development') console.log('[DEBUG] Raw passengers before normalization (dev only) count:', rawPassengers.length);
 
         // Helper to normalize a passenger object into UI-friendly keys
         const normalizePassenger = (p) => {
           // Try multiple field name variations for pickup point ID
           const pickupId = p?.pick_up_point || p?.trip_pickup_id || p?.tripPickupId || 
                           p?.pickup_id || p?.pickupId || p?.pickup_point || p?.pickupPoint || p?.pickup || '';
-          
-          console.log('[DEBUG] Passenger object:', p);
-          console.log('[DEBUG] Extracted pickupId:', pickupId);
-          console.log('[DEBUG] Pickup map lookup result:', pickupMap[pickupId]);
+          if (process.env.NODE_ENV === 'development') console.log('[DEBUG] Normalizing passenger (dev only):', { pickupId, name: p?.name || p?.customerName });
           
           // Get pickup label from map, fallback to ID if not found, then to '—' if empty
           let pickupLabel = '—';
@@ -343,7 +337,7 @@ export default function CustomerProfilePage() {
             pickupLabel = pickupId; // Show the UUID if not found in map
           }
           
-          console.log('[DEBUG] Final pickupLabel:', pickupLabel);
+          if (process.env.NODE_ENV === 'development') console.log('[DEBUG] Final pickupLabel (dev only):', pickupLabel);
           
           return {
             customerName: p?.name || p?.customerName || p?.full_name || p?.first_name || '',
@@ -359,7 +353,7 @@ export default function CustomerProfilePage() {
         const normalizedPassengers = rawPassengers.map(normalizePassenger);
 
         if (normalizedPassengers.length) {
-          console.log('[DEBUG] Setting booking details with normalized passengers:', normalizedPassengers);
+          if (process.env.NODE_ENV === 'development') console.log('[DEBUG] Setting booking details with', normalizedPassengers.length, 'passengers (dev only)');
           const first = normalizedPassengers[0];
           setTripBookingDetails(prev => ({
             ...prev,
@@ -376,22 +370,26 @@ export default function CustomerProfilePage() {
             }
           }));
         } else {
-          console.warn('[DEBUG] Booking found but no passenger data present in booking payload');
+          console.warn('[CustomerProfilePage] Booking found but no passenger data present in booking payload');
         }
       } else {
-        console.warn('[DEBUG] No booking found or missing passenger data');
+        console.warn('[CustomerProfilePage] No booking found or missing passenger data');
       }
     } catch (error) {
-      console.error('Failed to fetch booking details:', error);
-      // More granular debug output
+      console.error('[CustomerProfilePage] Failed to fetch booking details:', error?.message || error);
+      // More granular debug output in dev only (avoid printing response.data which may contain PII)
       if (error?.response) {
-        console.error('[DEBUG] openTripDetail: response status', error.response.status);
-        console.error('[DEBUG] openTripDetail: response data', error.response.data);
-        console.error('[DEBUG] openTripDetail: response headers', error.response.headers);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[DEBUG] openTripDetail: response status', error.response.status);
+        }
       } else if (error?.request) {
-        console.error('[DEBUG] openTripDetail: no response, request:', error.request);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[DEBUG] openTripDetail: no response, request present (dev only)');
+        }
       } else {
-        console.error('[DEBUG] openTripDetail: message', error.message);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[DEBUG] openTripDetail: message', error.message);
+        }
       }
     }
     

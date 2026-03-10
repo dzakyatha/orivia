@@ -48,14 +48,15 @@ api.interceptors.request.use(
 opentripAPI.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
-    console.log('[opentripAPI] Request to:', config.url, 'with token:', token?.substring(0, 50) + '...');
+    // Dev-only: log request url. Never log token contents to avoid credential leakage.
+    if (import.meta.env.DEV) console.log('[opentripAPI] Request to:', config.url);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => {
-    console.error('[opentripAPI] Request error:', error);
+    if (import.meta.env.DEV) console.error('[opentripAPI] Request error:', error);
     return Promise.reject(error);
   }
 );
@@ -64,14 +65,15 @@ opentripAPI.interceptors.request.use(
 plannerAPI.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
-    console.log('[plannerAPI] Request to:', config.url, 'with token:', token?.substring(0, 50) + '...');
+    // Dev-only: log request url. Never log token contents to avoid credential leakage.
+    if (import.meta.env.DEV) console.log('[plannerAPI] Request to:', config.url);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => {
-    console.error('[plannerAPI] Request error:', error);
+    if (import.meta.env.DEV) console.error('[plannerAPI] Request error:', error);
     return Promise.reject(error);
   }
 );
@@ -94,18 +96,13 @@ api.interceptors.response.use(
 // Add response interceptor for opentrip API
 opentripAPI.interceptors.response.use(
   (response) => {
-    console.log('[opentripAPI] Response from:', response.config.url, 'status:', response.status);
+    // Dev-only: log minimal response metadata. Avoid logging response.data which may contain PII.
+    if (import.meta.env.DEV) console.log('[opentripAPI] Response from:', response.config.url, 'status:', response.status);
     return response;
   },
   (error) => {
-    console.error('[opentripAPI] Response error:', error.config?.url, 'status:', error.response?.status, 'message:', error.response?.data);
-    // Don't auto-logout on 401 from microservices - they might not have the endpoint
-    // if (error.response?.status === 401) {
-    //   localStorage.removeItem('authToken');
-    //   localStorage.removeItem('role');
-    //   localStorage.removeItem('user');
-    //   window.location.href = '/login';
-    // }
+    // Do NOT auto-logout on microservice 401s; gateway/main API handles auth centrally.
+    if (import.meta.env.DEV) console.error('[opentripAPI] Response error:', error.config?.url, 'status:', error.response?.status, 'message:', error.message);
     return Promise.reject(error);
   }
 );
@@ -113,18 +110,13 @@ opentripAPI.interceptors.response.use(
 // Add response interceptor for planner API
 plannerAPI.interceptors.response.use(
   (response) => {
-    console.log('[plannerAPI] Response from:', response.config.url, 'status:', response.status);
+    // Dev-only: log minimal response metadata. Avoid logging response.data which may contain PII.
+    if (import.meta.env.DEV) console.log('[plannerAPI] Response from:', response.config.url, 'status:', response.status);
     return response;
   },
   (error) => {
-    console.error('[plannerAPI] Response error:', error.config?.url, 'status:', error.response?.status, 'message:', error.response?.data);
-    // Don't auto-logout on 401 from microservices - they might not have the endpoint
-    // if (error.response?.status === 401) {
-    //   localStorage.removeItem('authToken');
-    //   localStorage.removeItem('role');
-    //   localStorage.removeItem('user');
-    //   window.location.href = '/login';
-    // }
+    // Do NOT auto-logout on microservice 401s; gateway/main API handles auth centrally.
+    if (import.meta.env.DEV) console.error('[plannerAPI] Response error:', error.config?.url, 'status:', error.response?.status, 'message:', error.message);
     return Promise.reject(error);
   }
 );

@@ -209,25 +209,28 @@ def _sync_response(service_name, path, response_body, user):
     except (json.JSONDecodeError, TypeError):
         return
 
+    path_lower = (path or '').lower().strip('/')
+
     if service_name == 'planner':
-        # Response can be a single plan or a list of plans
-        if isinstance(data, list):
-            for item in data:
-                _sync_travel_plan(item, user)
-        elif isinstance(data, dict) and data.get('id'):
-            _sync_travel_plan(data, user)
-
-    elif service_name == 'opentrip':
-        path_lower = (path or '').lower().strip('/')
-
+        # Check if this is trip data (trips now managed by planner)
         if path_lower.startswith('trips'):
+            # Handle trip sync
             if isinstance(data, list):
                 for item in data:
                     _sync_trip(item, user)
             elif isinstance(data, dict) and data.get('trip_id'):
                 _sync_trip(data, user)
+        else:
+            # Regular travel plan data
+            if isinstance(data, list):
+                for item in data:
+                    _sync_travel_plan(item, user)
+            elif isinstance(data, dict) and data.get('id'):
+                _sync_travel_plan(data, user)
 
-        elif path_lower.startswith('bookings'):
+    elif service_name == 'opentrip':
+        # Note: trips are no longer handled here (moved to planner)
+        if path_lower.startswith('bookings'):
             if isinstance(data, list):
                 for item in data:
                     _sync_booking(item, user)
@@ -312,14 +315,30 @@ class GatewayProxyView(APIView):
             base_url = settings.TRAVEL_PLANNER_URL
             # Map external 'planner' to internal 'perencanaan'
             internal_path = f"perencanaan/{path.lstrip('/')}"
+            actual_service_name = 'planner'
         elif service_name == 'opentrip':
-            base_url = settings.OPEN_TRIP_URL
-            # Map external 'opentrip' to internal 'opentrip'
-            internal_path = f"opentrip/{path.lstrip('/')}"
+            # NOTE: Trip management has been moved to Travel Planner microservice
+            # Route trip-related requests to Travel Planner instead of Open Trip System
+            path_lower = (path or '').lower().strip('/')
+            if path_lower.startswith('trips'):
+                # Route trip requests to Travel Planner
+                base_url = settings.TRAVEL_PLANNER_URL
+                internal_path = f"perencanaan/{path.lstrip('/')}"
+                # Update service_name for proper sync handling
+                actual_service_name = 'planner'
+            else:
+                # Route bookings, transactions, etc. to Open Trip System
+                base_url = settings.OPEN_TRIP_URL
+                internal_path = f"opentrip/{path.lstrip('/')}"
+                actual_service_name = 'opentrip'
         else:
             response = HttpResponse("Service not found", status=404)
             self.response = self.finalize_response(request, response, *args, **kwargs)
             return self.response
+
+        # Track the actual service being called (for sync purposes)
+        # Use actual_service_name for data sync operations
+        sync_service_name = actual_service_name
 
         # Construct target URL
         url = f"{base_url}/api/{internal_path}"
@@ -411,7 +430,7 @@ class GatewayProxyView(APIView):
             if 200 <= microservice_response.status_code < 300:
                 try:
                     _sync_response(
-                        service_name,
+                        sync_service_name,  # Use actual service for proper data sync
                         path,
                         microservice_response.content,
                         request.user if request.user.is_authenticated else None,

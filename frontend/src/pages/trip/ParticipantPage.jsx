@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faCircleUser, faDownload, faCheck, faXmark, faEdit } from '@fortawesome/free-solid-svg-icons';
 import { spacing, fontFamily, colors, radius, fontSize } from '../../styles/variables.jsx';
@@ -8,6 +8,7 @@ import Modal from '../../components/ui/Modal.jsx';
 import extendAgentBg from '../../assets/images/extendagentbg.jpg';
 import { trips, tripSchedules, passengers } from '../../mocks/mockData';
 import { useLocation } from 'react-router-dom';
+import { fetchBookingsByTrip, fetchPlannerTripDetail } from '../../services/tripService';
 
 
 export default function ParticipantPage() {
@@ -15,53 +16,115 @@ export default function ParticipantPage() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const qScheduleId = params.get('scheduleId');
+  const qTripId = params.get('tripId');
+  
+  // State for API data
+  const [loading, setLoading] = useState(!!qTripId);
+  const [tripData, setTripData] = useState(null);
+  const [bookingsData, setBookingsData] = useState([]);
+  
+  // Fetch trip and bookings data from API
+  useEffect(() => {
+    if (!qTripId) {
+      setLoading(false);
+      return;
+    }
+    
+    async function loadData() {
+      try {
+        setLoading(true);
+        // Fetch trip details and bookings in parallel
+        const [trip, bookings] = await Promise.all([
+          fetchPlannerTripDetail(qTripId),
+          fetchBookingsByTrip(qTripId)
+        ]);
+        setTripData(trip);
+        setBookingsData(bookings);
+      } catch (err) {
+        console.error('Error loading trip/bookings:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    loadData();
+  }, [qTripId]);
+  
   const defaultSchedule = tripSchedules && tripSchedules.length ? (qScheduleId ? tripSchedules.find(s => String(s.scheduleId) === String(qScheduleId)) : tripSchedules[0]) : null;
   const defaultTrip = defaultSchedule ? trips.find(t => t.tripId === defaultSchedule.tripId) : (trips && trips.length ? trips[0] : null);
-  const schedules = defaultTrip && tripSchedules ? (
-    tripSchedules.filter(s => s.tripId === defaultTrip.tripId).map(s => ({ id: s.scheduleId, text: `${s.start_date || ''} - ${s.end_date || ''}` }))
+  
+  // Use tripData if available, otherwise fall back to mock data
+  const displayedTrip = tripData || defaultTrip;
+  
+  const schedules = displayedTrip && tripSchedules ? (
+    tripSchedules.filter(s => s.tripId === displayedTrip.tripId || s.tripId === displayedTrip.trip_id).map(s => ({ id: s.scheduleId, text: `${s.start_date || ''} - ${s.end_date || ''}` }))
   ) : [];
   const [selectedScheduleId, setSelectedScheduleId] = useState(schedules.length ? schedules[0].id : (defaultSchedule ? defaultSchedule.scheduleId : null));
   const displayedSchedule = (selectedScheduleId != null) ? (tripSchedules.find(s => Number(s.scheduleId) === Number(selectedScheduleId)) || defaultSchedule) : defaultSchedule;
-  const displayedTrip = displayedSchedule ? trips.find(t => t.tripId === displayedSchedule.tripId) : defaultTrip;
-  const passengerSample = (displayedSchedule && displayedSchedule.participants && displayedSchedule.participants.length) ? displayedSchedule.participants : (passengers || []);
+  
+  // Get pickup points array for lookup
+  const pickupPointsArr = displayedTrip?.pickup_points || [];
+  
+  // Map bookings data to passenger format
+  // Use trip_pickup_id from booking to find the correct pickup point from trip_pickup_point table
+  const apiPassengers = bookingsData.map((booking, idx) => {
+    const p = booking.passenger || {};
+    
+    // Find pickup point using trip_pickup_id from booking
+    const pickupPoint = pickupPointsArr.find(pp => pp.id === booking.trip_pickup_id);
+    const pickupLocation = pickupPoint ? pickupPoint.location : (p.pick_up_point || '-');
+    
+    return {
+      username: `user${idx + 1}`,
+      fullname: p.name || 'Unknown',
+      gender: p.gender || '-',
+      dob: p.date_of_birth || null,
+      nationality: p.nationality || 'Indonesia',
+      pickup: pickupLocation,
+      phone: p.phone_number || '-',
+      notes: p.notes || ''
+    };
+  });
+  
+  // Use API passengers if available, else fall back to mock data
+  const passengerSample = apiPassengers.length > 0 ? apiPassengers : ((displayedSchedule && displayedSchedule.participants && displayedSchedule.participants.length) ? displayedSchedule.participants : (passengers || []));
   const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
   // computed participant / capacity values
-  // `totalParticipants` should represent trip capacity (`pax`),
+  // `totalParticipants` should represent trip capacity (`pax` or `slot`),
   // while `confirmedCount` is the number of participants on the selected schedule.
-  const totalParticipants = displayedTrip?.pax ?? '-';
+  const totalParticipants = displayedTrip?.pax || displayedTrip?.slot || '-';
   const confirmedCount = passengerSample.length;
-  const capacity = displayedTrip?.pax ?? '-';
-  const availableSlots = (typeof displayedTrip?.pax === 'number')
-    ? Math.max(displayedTrip.pax - confirmedCount, 0)
+  const capacity = displayedTrip?.pax || displayedTrip?.slot || '-';
+  const availableSlots = (typeof (displayedTrip?.pax || displayedTrip?.slot) === 'number')
+    ? Math.max((displayedTrip.pax || displayedTrip.slot) - confirmedCount, 0)
     : '-';
 
-  // pickup summary computed from trip pickup_points (with prices) and participants
+  // pickup summary computed from trip pickup_points (from trip_pickup_point table in database)
   const normalize = (s) => String(s || '').trim();
-  const pickupPointsArr = displayedTrip?.pickup_points || [];
-  const pickupPriceMap = {};
-  pickupPointsArr.forEach(pp => { pickupPriceMap[normalize(pp.location)] = pp.price ?? 0; });
+  
+  // Count passengers by pickup location (only counting those matching official pickup points)
   const pickupCountsMap = {};
   passengerSample.forEach(p => {
-    const loc = normalize(p.pickup || 'Other');
-    pickupCountsMap[loc] = (pickupCountsMap[loc] || 0) + 1;
-  });
-
-  // Build ordered summary from trip pickup points first, then any extras from participants
-  const pickupSummaryMap = new Map();
-  pickupPointsArr.forEach(pp => {
-    const key = normalize(pp.location);
-    pickupSummaryMap.set(key, { loc: pp.location, count: pickupCountsMap[key] || 0, price: pickupPriceMap[key] || 0 });
-  });
-  Object.keys(pickupCountsMap).forEach(k => {
-    if (!pickupSummaryMap.has(k)) {
-      pickupSummaryMap.set(k, { loc: k, count: pickupCountsMap[k], price: pickupPriceMap[k] || 0 });
+    const loc = normalize(p.pickup || '');
+    if (loc) {
+      pickupCountsMap[loc] = (pickupCountsMap[loc] || 0) + 1;
     }
   });
-  const pickupSummary = Array.from(pickupSummaryMap.values());
+
+  // Build summary using ONLY official pickup points from trip_pickup_point table
+  const pickupSummary = pickupPointsArr.map(pp => {
+    const key = normalize(pp.location);
+    return {
+      loc: pp.location,
+      count: pickupCountsMap[key] || 0,
+      price: pp.price ?? 0
+    };
+  });
 
   const totalPickupRevenue = pickupSummary.reduce((sum, p) => sum + (p.count * (p.price || 0)), 0);
-  const totalTripRevenue = confirmedCount * (displayedTrip?.price || 0);
+  const tripPrice = displayedTrip?.price || displayedTrip?.harga || 0;
+  const totalTripRevenue = confirmedCount * tripPrice;
   const totalRevenue = totalTripRevenue + totalPickupRevenue;
 
   const formatIDR = (v) => {
@@ -212,8 +275,14 @@ export default function ParticipantPage() {
           <div style={headerLeft}>
             <img src={displayedTrip?.image || (displayedTrip?.images && displayedTrip.images[0]) || '/src/assets/images/tripexplorebg.png'} alt="trip" style={thumb} />
             <div style={titleBlock}>
-              <h2 style={{ margin: 0, color: '#2b2b2b' }}>{displayedTrip?.name || '—'}</h2>
-              <div style={subtitle}>{displayedTrip?.location?.state ? `${displayedTrip.location.state}` : ''}{(displayedTrip?.duration?.days || displayedTrip?.duration?.nights || displayedTrip?.type || displayedTrip?.destinationType) ? (displayedTrip?.location?.state ? ' · ' : '') : ''}{(displayedTrip?.duration?.days ? `${displayedTrip.duration.days}D` : '')}{(displayedTrip?.duration?.nights ? `${displayedTrip.duration.nights}N` : '')}{displayedTrip?.type || displayedTrip?.destinationType ? ` · ${displayedTrip.type || displayedTrip.destinationType}` : ''}</div>
+              <h2 style={{ margin: 0, color: '#2b2b2b' }}>{displayedTrip?.trip_name || displayedTrip?.nama || displayedTrip?.name || '—'}</h2>
+              <div style={subtitle}>
+                {(typeof displayedTrip?.location === 'string' ? displayedTrip.location : displayedTrip?.location?.state) || displayedTrip?.provinsi || ''}
+                {(displayedTrip?.duration?.days || displayedTrip?.jumlah_hari || displayedTrip?.duration?.nights || displayedTrip?.jumlah_malam || displayedTrip?.destination_type || displayedTrip?.type || displayedTrip?.destinationType) ? ' · ' : ''}
+                {displayedTrip?.duration?.days || displayedTrip?.jumlah_hari ? `${displayedTrip.duration?.days || displayedTrip.jumlah_hari}D` : ''}
+                {displayedTrip?.duration?.nights || displayedTrip?.jumlah_malam ? `${displayedTrip.duration?.nights || displayedTrip.jumlah_malam}N` : ''}
+                {displayedTrip?.destination_type || displayedTrip?.type || displayedTrip?.destinationType ? ` · ${displayedTrip.destination_type || displayedTrip.type || displayedTrip.destinationType}` : ''}
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, paddingTop: spacing.sm }}>
                 {schedules.length > 0 && (
                   <select
@@ -231,7 +300,7 @@ export default function ParticipantPage() {
           </div>
           <div style={slotBox}>
             <div style={{ color: '#7a6a45', fontWeight: 600 }}>Available Slot</div>
-            <div style={slotBig}>{availableSlots} / {displayedTrip?.pax ?? '-'}</div>
+            <div style={slotBig}>{availableSlots} / {displayedTrip?.pax || displayedTrip?.slot || '-'}</div>
           </div>
         </div>
         <Modal open={modalOpen} onClose={closePassengerModal} title={''}>
@@ -268,7 +337,7 @@ export default function ParticipantPage() {
                 <div style={{ marginBottom: spacing.md }}>
                   <div style={{ fontSize: fontSize.sm, opacity: 0.9, marginBottom: spacing.xs }}>Notes</div>
                   <div style={{ borderRadius: radius.sm, color: colors.accent5, fontWeight: 600 }}>
-                    I prefer a window seat during transportation if available, prefer a lower bunk for sleeping arrangements, and have food allergies to peanuts and shrimp.
+                    {selectedPassenger.notes || 'No notes available'}
                   </div>
                 </div>
 

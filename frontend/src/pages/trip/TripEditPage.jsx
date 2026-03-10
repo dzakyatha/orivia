@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUpload, faTrash, faPencil, faPlus, faCheck, faXmark } from '@fortawesome/free-solid-svg-icons';
@@ -9,6 +9,7 @@ import extendAgentBg from '../../assets/images/extendagentbg.jpg';
 import { colors, spacing, radius, fontSize, fontFamily } from '../../styles/variables';
 import { TripCard, ImageUploadCard, InputField, IconButton, AddButton, UploadButton, CardHeader, SectionTitle, ImagePreview, TextLink } from '../../components/ui/Card';
 import { trips, tripSchedules, DESTINATION_TYPES } from '../../mocks/mockData';
+import { fetchPlannerTripDetail, updatePlannerTrip } from '../../services/tripService';
 
 const DEST_OPTIONS = DESTINATION_TYPES || [
   'Island Exploration',
@@ -26,8 +27,17 @@ export default function TripEditPage() {
   const search = (location && location.search) ? location.search : '';
   const params = new URLSearchParams(search);
   const qTripId = params.get('tripId');
+  
+  // State for loading trip data from database
+  const [loading, setLoading] = useState(!!qTripId);
+  const [error, setError] = useState(null);
+  const [tripData, setTripData] = useState(null);
+  
+  // Determine defaultTrip: use fetched tripData if available, else mock
   let defaultTrip = {};
-  if (trips && trips.length > 0) {
+  if (tripData) {
+    defaultTrip = tripData;
+  } else if (trips && trips.length > 0) {
     if (qTripId) {
       defaultTrip = trips.find(t => String(t.tripId) === String(qTripId)) || trips[0];
     } else {
@@ -132,6 +142,98 @@ export default function TripEditPage() {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [editLocationProvince, setEditLocationProvince] = useState('');
   const [editLocationCountry, setEditLocationCountry] = useState('');
+
+  // Fetch trip data from database when tripId is provided
+  useEffect(() => {
+    const loadTripData = async () => {
+      if (!qTripId) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        console.log('[TripEditPage] Fetching trip with ID:', qTripId);
+        const data = await fetchPlannerTripDetail(qTripId);
+        console.log('[TripEditPage] Loaded trip data:', data);
+        setTripData(data);
+        
+        // Update state with fetched data
+        setTripName(data.name || 'Labuan Bajo');
+        
+        const p = data.price;
+        if (p != null) {
+          setTripPrice(typeof p === 'number' ? String(p).replace(/\B(?=(\d{3})+(?!\d))/g, '.') : String(p));
+        }
+        
+        setTripProvince(data.location?.state || data.provinsi || 'East Nusa Tenggara, Indonesia');
+        setTripCountry(data.location?.country || data.negara || 'Indonesia');
+        setTripSlot(String(data.slot || data.slot_tersedia || 8));
+        setTripDay(String(data.duration?.days || data.jumlah_hari || 3));
+        setTripNight(String(data.duration?.nights || data.jumlah_malam || 2));
+        setTripDestType(data.destinationType || data.destination_type || 'Island Exploration');
+        setTripDescription(data.description || data.deskripsi || 'Labuan Bajo, located at the eastern end of Rinca Flores, Manggarai, is famous for its stunning beauty and unique wildlife.');
+        
+        // Update images
+        if (data.images && data.images.length > 0) {
+          const imgs = data.images.map(img => img.url);
+          while (imgs.length < MAX_IMAGES) imgs.push(null);
+          setImagePreviews(imgs.slice(0, MAX_IMAGES));
+        }
+        
+        // Update pickup points
+        if (data.pickup_points && data.pickup_points.length > 0) {
+          const pts = data.pickup_points.map((p, i) => ({
+            id: i + 1,
+            price: p.price != null ? String(p.price) : '',
+            location: p.location || '',
+            checked: i === 0
+          }));
+          setPickupPoints(pts);
+        }
+        
+        // Update includes
+        if (data.includes && data.includes.length > 0) {
+          const inc = data.includes.map((item, i) => ({
+            id: i + 1,
+            name: item, // item is already a string from backend
+            checked: true
+          }));
+          setIncludes(inc);
+        }
+        
+        // Update trip planner/rundowns
+        if (data.rundowns && Object.keys(data.rundowns).length > 0) {
+          const rundownsData = {};
+          Object.entries(data.rundowns).forEach(([day, activities]) => {
+            rundownsData[day] = activities.map((a, idx) => ({
+              id: idx + 1,
+              time: a.time || '',
+              duration: a.duration || '',
+              activity: a.activity || '',
+              location: a.location || ''
+            }));
+          });
+          setTripPlanner(rundownsData);
+          setTripDays(Object.keys(data.rundowns).length || data.duration?.days || 3);
+          setOpenDay(1);
+        }
+        
+        // Update schedules
+        if (data.startDate && data.endDate) {
+          setSchedules([{ id: 1, text: `${data.startDate} - ${data.endDate}` }]);
+        }
+        
+        setError(null);
+      } catch (err) {
+        console.error('[TripEditPage] Failed to load trip:', err);
+        setError('Gagal memuat data trip. Silakan coba lagi.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadTripData();
+  }, [qTripId]);
 
   const openFieldModal = (field, value) => {
     if (field === 'destType') {
@@ -468,6 +570,57 @@ export default function TripEditPage() {
     return s.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   };
 
+  const handleSaveTrip = async () => {
+    if (!qTripId) {
+      console.error('[TripEditPage] No tripId available for saving');
+      alert('Cannot save: Trip ID is missing');
+      return;
+    }
+
+    try {
+      console.log('[TripEditPage] Saving trip:', qTripId);
+      
+      // Parse price: remove dots and convert to number
+      const priceNumber = parseFloat(String(tripPrice).replace(/\./g, ''));
+      
+      // Parse slot
+      const slotNumber = parseInt(tripSlot, 10);
+      
+      // Parse days and nights
+      const daysNumber = parseInt(tripDay, 10);
+      const nightsNumber = parseInt(tripNight, 10);
+      
+      // Prepare update data
+      const updateData = {
+        name: tripName,
+        description: tripDescription,
+        price: priceNumber,
+        provinsi: tripProvince,
+        country: tripCountry,
+        slot: slotNumber,
+        days: daysNumber,
+        nights: nightsNumber,
+        destinationType: tripDestType,
+      };
+      
+      console.log('[TripEditPage] Update data:', updateData);
+      
+      // Call API to update trip
+      const result = await updatePlannerTrip(qTripId, updateData);
+      
+      console.log('[TripEditPage] Trip updated successfully:', result);
+      alert('Trip saved successfully!');
+      
+      // Optionally navigate back to agent page after successful save
+      // navigate('/trip/agent');
+      
+    } catch (error) {
+      console.error('[TripEditPage] Error saving trip:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Unknown error occurred';
+      alert(`Failed to save trip: ${errorMessage}`);
+    }
+  };
+
   const filledCount = imagePreviews.filter(Boolean).length;
 
   const pageStyle = {
@@ -480,7 +633,7 @@ export default function TripEditPage() {
     fontFamily: 'Inter, system-ui, -apple-system',
   };
 
-  const scheduleCardTotalMin = '230px';
+  const scheduleCardTotalMin = '180px';
   const scheduleFixedBottomApprox = '0px';
   const scheduleListMaxHeight = `calc(${scheduleCardTotalMin} - ${scheduleFixedBottomApprox})`;
 
@@ -496,6 +649,54 @@ export default function TripEditPage() {
     gap: spacing.lg,
     marginTop: spacing.lg,
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div style={pageStyle}>
+        <Navbar style={{ position: 'sticky', top: 0, left: 0, right: 0, zIndex: 60, backgroundColor: `${colors.bg}33`, backdropFilter: 'saturate(120%) blur(6px)', borderBottom: `1px solid ${colors.bg}20` }} />
+        <div style={containerStyle}>
+          <TripTabs />
+          <div style={{
+            padding: 32,
+            background: colors.bg,
+            borderRadius: radius.lg,
+            boxShadow: '0 6px 18px rgba(8,15,20,0.06)',
+            marginTop: spacing.lg,
+            textAlign: 'center'
+          }}>
+            <p>Memuat data trip...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div style={pageStyle}>
+        <Navbar style={{ position: 'sticky', top: 0, left: 0, right: 0, zIndex: 60, backgroundColor: `${colors.bg}33`, backdropFilter: 'saturate(120%) blur(6px)', borderBottom: `1px solid ${colors.bg}20` }} />
+        <div style={containerStyle}>
+          <TripTabs />
+          <div style={{
+            padding: 32,
+            background: colors.bg,
+            borderRadius: radius.lg,
+            boxShadow: '0 6px 18px rgba(8,15,20,0.06)',
+            marginTop: spacing.lg,
+            textAlign: 'center',
+            color: colors.error
+          }}>
+            <p>{error}</p>
+            <Button variant="primary" onClick={() => window.location.reload()} style={{ marginTop: spacing.md }}>
+              Reload Page
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isParticipant) {
     return (
@@ -683,9 +884,9 @@ export default function TripEditPage() {
               </div>
             </TripCard>
             {/* Pick Up Point Section */}
-            <TripCard>
+            <TripCard style={{ width: '828px', height: '200px', display: 'flex', flexDirection: 'column' }}>
               <CardHeader>Pick Up Point</CardHeader>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, maxHeight: '140px', overflowY: 'auto', paddingRight: spacing.sm }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, flex: 1, overflowY: 'auto', paddingRight: spacing.sm }}>
                 {pickupPoints.map((point) => (
                   <div
                     key={point.id}
@@ -724,9 +925,9 @@ export default function TripEditPage() {
               <TextLink onClick={() => { setPickupError(''); setShowPickupModal(true); }}>+ Others</TextLink>
             </TripCard>
             {/* Include Section */}
-            <TripCard style={{ minHeight: '353px' }}>
+            <TripCard style={{ width: '828px', height: '418px', display: 'flex', flexDirection: 'column' }}>
               <CardHeader>Include</CardHeader>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, maxHeight: '283px', overflowY: 'auto', paddingRight: spacing.sm }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, flex: 1, overflowY: 'auto', paddingRight: spacing.sm }}>
                 {includes.map((item) => (
                   <div
                     key={item.id}
@@ -935,7 +1136,7 @@ export default function TripEditPage() {
           )}
           {/* Keep Trip Button */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: spacing.lg }}>
-            <Button variant="primary" style={{ minWidth: '200px', padding: `${spacing.md} ${spacing.xl}` }}>
+            <Button variant="primary" style={{ minWidth: '200px', padding: `${spacing.md} ${spacing.xl}` }} onClick={handleSaveTrip}>
               <FontAwesomeIcon icon={faCheck} style={{ marginRight: spacing.xs }} />
               <span style={{ fontWeight: 700, fontFamily: fontFamily.base}}>Save Trip</span>
             </Button>

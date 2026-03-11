@@ -7,7 +7,7 @@ import Modal, { modalStyles } from '../../components/ui/Modal.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPen, faEye, faClock, faCheck, faCalendarDays, faTag, faMapMarkerAlt, faXmark, faDownload } from '@fortawesome/free-solid-svg-icons';
 import { fetchProfile, updateProfile } from '../../services/profileService';
-import { fetchLatestTripByEmail, fetchBookings, fetchPickupPoints } from '../../services/tripService';
+import { fetchLatestTripByEmail, fetchLatestBookedTrip, fetchBookings, fetchPickupPoints } from '../../services/tripService';
 import countryList from 'react-select-country-list';
 import profileImage from '../../assets/images/jeki.jpg';
 import tripThumb1 from '../../assets/images/landingpage2.png';
@@ -103,16 +103,10 @@ export default function CustomerProfilePage() {
         // Reset error state
         setLatestTripError(null);
 
-        // Get user email and role from profile or localStorage
-        const userEmail = profileDetail?.email || localUser?.email;
+        // Get user role from profile or localStorage
         const userRole = profileDetail?.role || localUser?.role || localStorage.getItem('role');
 
-        console.log('[CustomerProfilePage] User email:', userEmail, 'role:', userRole);
-
-        if (!userEmail) {
-          console.log('[CustomerProfilePage] No user email available, skipping latest trip fetch');
-          return;
-        }
+        console.log('[CustomerProfilePage] User role:', userRole);
 
         // Role validation: only fetch for Customer role
         if (!userRole || userRole.toLowerCase() !== 'customer') {
@@ -121,30 +115,28 @@ export default function CustomerProfilePage() {
           return;
         }
 
-        console.log('[CustomerProfilePage] Calling fetchLatestTripByEmail...');
-        // Fetch latest trip from open-trip-system microservice
-        const latestTrip = await fetchLatestTripByEmail(userEmail, userRole);
+        console.log('[CustomerProfilePage] Calling fetchLatestBookedTrip...');
+        // Fetch latest booked trip from database via new endpoint
+        const latestTrip = await fetchLatestBookedTrip();
 
-        console.log('[CustomerProfilePage] fetchLatestTripByEmail returned:', latestTrip);
+        console.log('[CustomerProfilePage] fetchLatestBookedTrip returned:', latestTrip);
 
         if (latestTrip) {
           // Map the response to frontend format
-          // Backend uses: trip_id, trip_name, departure_date, price
-          // Frontend expects: id, title, date, price (keeping the mapping for display)
           const mappedTrip = {
-            id: latestTrip.trip_id,
-            trip_id: latestTrip.trip_id,
-            trip_name: latestTrip.trip_name,
-            title: latestTrip.trip_name, // for backward compatibility in UI
-            departure_date: latestTrip.departure_date,
-            date: latestTrip.departure_date, // for backward compatibility in UI
+            id: latestTrip.tripId || latestTrip.id || latestTrip.trip_id,
+            trip_id: latestTrip.tripId || latestTrip.id || latestTrip.trip_id,
+            trip_name: latestTrip.name || latestTrip.trip_name || latestTrip.title,
+            title: latestTrip.name || latestTrip.trip_name || latestTrip.title,
+            departure_date: latestTrip.startDate || latestTrip.departure_date,
+            date: latestTrip.startDate || latestTrip.departure_date,
             price: latestTrip.price ? `Rp ${latestTrip.price.toLocaleString('id-ID')}` : '',
-            // prefer destination_type (new) and keep location for compatibility
-            destination_type: latestTrip.destination_type || '',
-            location: latestTrip.location || '',
-            status: latestTrip.status || 'Upcoming',
-            // legacy tag fallback: prefer destination_type, then location, then status
-            tag: latestTrip.destination_type || latestTrip.location || latestTrip.status || 'Upcoming',
+            destination_type: latestTrip.destinationType || latestTrip.destination_type || '',
+            location: latestTrip.location?.state || latestTrip.location || '',
+            status: latestTrip.booking_status || latestTrip.status || 'Upcoming',
+            tag: latestTrip.destinationType || latestTrip.destination_type || latestTrip.location?.state || latestTrip.status || 'Upcoming',
+            booking_id: latestTrip.booking_id,
+            participant_count: latestTrip.participant_count || 0
           };
 
           console.log('[CustomerProfilePage] Mapped trip:', mappedTrip);

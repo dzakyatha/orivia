@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCalendar, faLocationDot, faUsers, faCheck,faChevronDown,faChevronLeft,faChevronRight} from '@fortawesome/free-solid-svg-icons';
 import Navbar from '../../components/ui/Navbar.jsx';
@@ -6,7 +6,7 @@ import Button from '../../components/ui/Button';
 import { TripCard } from '../../components/ui/Card.jsx';
 import { colors, spacing, radius, fontSize, fontFamily } from '../../styles/variables';
 import { useParams, useNavigate } from 'react-router-dom';
-import { trips, tripSchedules, TRIP_RUNDOWNS, TRIP_IMAGES, INCLUDES, PICKUP_POINTS } from '../../mocks/mockData.js';
+import { fetchPlannerTrips, fetchPlannerTripDetail } from '../../services/tripService';
 
 const monthNamesID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
@@ -52,21 +52,97 @@ export default function BookingPage() {
   const [isHover, setIsHover] = useState(false);
   const { id } = useParams();
   const routeId = id ? Number(id) : null;
-  // routeId represents scheduleId when navigated from CustomerPage
-  const schedule = routeId != null ? (tripSchedules.find(s => Number(s.scheduleId) === Number(routeId)) || null) : null;
-  const trip = schedule
-    ? trips.find(t => Number(t.tripId) === Number(schedule.tripId)) || null
-    : (routeId != null ? trips.find(t => Number(t.tripId) === Number(routeId)) || null : null);
-  const TRIP_IMAGES_LOCAL = (trip && trip.images) || TRIP_IMAGES[trip?.tripId] || TRIP_IMAGES[1] || [];
-  const RUNDOWN_DATA_LOCAL = (trip && trip.rundowns) || TRIP_RUNDOWNS || {};
-  const INCLUDES_LOCAL = (trip && trip.includes) || INCLUDES || [];
-  const PICKUP_LOCAL = (trip && trip.pickup_points) || PICKUP_POINTS || [];
+  
+  // State for planner data
+  const [trip, setTrip] = useState(null);
+  const [schedule, setSchedule] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    
+    async function loadTripData() {
+      if (!routeId) {
+        setLoading(false);
+        setError('No trip ID provided');
+        return;
+      }
+      
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // First, fetch all schedules to find the schedule by scheduleId
+        console.log('[BookingPage] Loading schedule with ID:', routeId);
+        const data = await fetchPlannerTrips();
+        
+        if (!mounted) return;
+        
+        const foundSchedule = (data.tripSchedules || []).find(
+          s => Number(s.scheduleId) === Number(routeId)
+        );
+        
+        if (!foundSchedule) {
+          console.warn('[BookingPage] Schedule not found for ID:', routeId);
+          setError('Schedule not found');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('[BookingPage] Found schedule:', foundSchedule);
+        setSchedule(foundSchedule);
+        
+        // Now fetch the full trip detail using tripId from schedule
+        const tripId = foundSchedule.tripId || foundSchedule.trip_id || foundSchedule.id_rencana;
+        console.log('[BookingPage] Fetching trip detail for tripId:', tripId);
+        
+        const tripDetail = await fetchPlannerTripDetail(tripId);
+        
+        if (!mounted) return;
+        
+        console.log('[BookingPage] Loaded trip detail:', tripDetail);
+        setTrip(tripDetail);
+        
+      } catch (e) {
+        console.error('[BookingPage] Failed to load trip data', e);
+        if (mounted) {
+          setError('Failed to load trip details');
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    
+    loadTripData();
+    return () => { mounted = false; };
+  }, [routeId]);
+  
+  // Prepare data for rendering - directly from trip detail (no fallbacks)
+  const TRIP_IMAGES_LOCAL = trip?.images && trip.images.length > 0 
+    ? trip.images.map(img => typeof img === 'string' ? img : img.url).filter(Boolean)
+    : [];
+  const RUNDOWN_DATA_LOCAL = trip?.rundowns || {};
+  const INCLUDES_LOCAL = trip?.includes || [];
+  const PICKUP_LOCAL = trip?.pickup_points || [];
+  
+  // Calculate total days from rundowns for dropdown
+  const totalDays = Object.keys(RUNDOWN_DATA_LOCAL).length || 1;
+
+  // Reset selectedDay if it exceeds totalDays
+  useEffect(() => {
+    if (selectedDay > totalDays) {
+      setSelectedDay(1);
+    }
+  }, [totalDays, selectedDay]);
 
   const prevImage = () => {
+    if (TRIP_IMAGES_LOCAL.length === 0) return;
     setImgIndex((i) => (i - 1 + TRIP_IMAGES_LOCAL.length) % TRIP_IMAGES_LOCAL.length);
   };
 
   const nextImage = () => {
+    if (TRIP_IMAGES_LOCAL.length === 0) return;
     setImgIndex((i) => (i + 1) % TRIP_IMAGES_LOCAL.length);
   };
 
@@ -108,9 +184,39 @@ export default function BookingPage() {
         padding: spacing.lg
       }}>
         
+        {/* Loading State */}
+        {loading && (
+          <div style={{
+            textAlign: 'center',
+            padding: spacing.xl,
+            color: colors.bg,
+            fontSize: fontSize.xl,
+            fontWeight: 600
+          }}>
+            Loading trip details...
+          </div>
+        )}
+
+        {/* Error State */}
+        {!loading && error && (
+          <div style={{
+            textAlign: 'center',
+            padding: spacing.xl,
+            color: colors.bg,
+            fontSize: fontSize.xl,
+            fontWeight: 600
+          }}>
+            {error}
+          </div>
+        )}
+
+        {/* Content - Only show when data is loaded */}
+        {!loading && !error && trip && (
+        <>
+        
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '0.5fr 0.5fr',
+          gridTemplateColumns: 'minmax(0, 660px) 1fr',
           gap: spacing.xl,
           marginBottom: spacing.xl
         }}>
@@ -120,8 +226,10 @@ export default function BookingPage() {
             position: 'relative',
             borderRadius: radius.lg,
             overflow: 'hidden',
-            height: '100%',
-            minHeight: '600px',
+            width: '100%',
+            maxWidth: 660,
+            height: 600,
+            minHeight: 600,
             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)'
           }}>
               <div style={{ width: '100%', height: '100%', position: 'relative' }}
@@ -131,9 +239,10 @@ export default function BookingPage() {
                 onMouseEnter={() => setIsHover(true)}
                 onMouseLeave={() => setIsHover(false)}
               >
+              {TRIP_IMAGES_LOCAL.length > 0 ? (
               <img
                 src={TRIP_IMAGES_LOCAL[imgIndex]}
-                alt={`${trip ? trip.name : 'Trip'} ${imgIndex + 1}`}
+                alt={`${trip.name} ${imgIndex + 1}`}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -141,6 +250,20 @@ export default function BookingPage() {
                   display: 'block'
                 }}
               />
+              ) : (
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: colors.accent5,
+                  color: colors.bg,
+                  fontSize: fontSize.xl
+                }}>
+                  No images available
+                </div>
+              )}
 
               {/* Left Arrow */}
               <button
@@ -185,7 +308,7 @@ export default function BookingPage() {
               </button>
 
               {/* Hover overlay for first image */}
-              {imgIndex === 0 && isHover && (
+              {TRIP_IMAGES_LOCAL.length > 0 && imgIndex === 0 && isHover && (
                 <div aria-hidden style={{
                   position: 'absolute',
                   left: 0,
@@ -202,12 +325,12 @@ export default function BookingPage() {
                   pointerEvents: 'none',
                   zIndex: 1
                 }}>
-                  <div style={{ fontSize: fontSize.lg, fontWeight: 700, marginBottom: spacing.xs, paddingLeft: spacing.lg }}>{trip ? trip.name : 'About this place'}</div>
-                  <div style={{ fontSize: fontSize.base, textAlign: 'justify', padding: `${spacing.md} ${spacing.lg} ${spacing.lg} ${spacing.lg}`, lineHeight: 1.45, maxHeight: '40%', overflowY: 'auto' }}>{trip ? trip.description : ''}</div>
+                  <div style={{ fontSize: fontSize.lg, fontWeight: 700, marginBottom: spacing.xs, paddingLeft: spacing.lg }}>{trip.name}</div>
+                  <div style={{ fontSize: fontSize.base, textAlign: 'justify', padding: `${spacing.md} ${spacing.lg} ${spacing.lg} ${spacing.lg}`, lineHeight: 1.45, maxHeight: '40%', overflowY: 'auto' }}>{trip.description}</div>
                 </div>
               )}
 
-              {imgIndex >= 1 && isHover && (
+              {TRIP_IMAGES_LOCAL.length > 0 && imgIndex >= 1 && isHover && (
                 <div aria-hidden style={{
                   position: 'absolute',
                   left: 0,
@@ -248,7 +371,7 @@ export default function BookingPage() {
                   fontFamily: fontFamily.base,
                   lineHeight: 1.2
                 }}>
-                  {trip ? trip.name : 'Trip'}
+                  {trip.name}
                 </h1>
                 <p style={{
                   fontSize: fontSize.xl,
@@ -257,10 +380,9 @@ export default function BookingPage() {
                   marginBottom: spacing.xs
                 }}>
                   {(() => {
-                    if (!trip) return '2 Day 1 Night • Island Exploration';
                     const durStr = formatDurationText(trip.duration);
-                    const subtitle = [durStr, trip.destinationType || trip.type].filter(Boolean).join(' • ');
-                    return subtitle;
+                    const subtitle = [durStr, trip.destinationType || trip.destination_type].filter(Boolean).join(' • ');
+                    return subtitle || 'Trip Details';
                   })()}
                 </p>
               </div>
@@ -285,7 +407,7 @@ export default function BookingPage() {
                     color: colors.accent5,
                     marginBottom: spacing.md
                   }}>
-                    {formatRupiah(trip?.price)}<span style={{ fontSize: fontSize.lg, fontWeight: 600 }}>/pax</span>
+                    {formatRupiah(trip?.price ?? trip?.harga)}<span style={{ fontSize: fontSize.lg, fontWeight: 600 }}>/pax</span>
                   </div>
                   <Button 
                     variant="primary" 
@@ -299,7 +421,7 @@ export default function BookingPage() {
                       justifyContent: 'center',
                       gap: spacing.sm
                     }}
-                    onClick={() => navigate('/explore/booking/checkout/details', { state: { scheduleId: schedule?.scheduleId || null, tripId: trip?.tripId || null } })}
+                    onClick={() => navigate('/explore/booking/checkout/details', { state: { scheduleId: schedule?.scheduleId, tripId: trip?.tripId || trip?.id_rencana || trip?.trip_id } })}
                   >
                     <FontAwesomeIcon icon={faCheck} />
                     Book Trip
@@ -342,15 +464,15 @@ export default function BookingPage() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: fontSize.base }}>
                     <FontAwesomeIcon icon={faCalendar} />
-                    <span>{schedule ? formatDateRange(schedule.start_date, schedule.end_date) : formatDateRange('2026-02-01','2026-02-02')}</span>
+                    <span>{schedule ? formatDateRange(schedule.start_date, schedule.end_date) : '-'}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: fontSize.base }}>
                     <FontAwesomeIcon icon={faLocationDot} />
-                    <span>{trip ? `${trip.location.state}, ${trip.location.country}` : 'East Nusa Tenggara, Indonesia'}</span>
+                    <span>{`${trip.location?.state || trip.provinsi || '-'}, ${trip.location?.country || trip.negara || '-'}`}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: fontSize.base }}>
                     <FontAwesomeIcon icon={faUsers} />
-                    <span>{schedule ? `${schedule.slotAvailable ?? '-'} / ${trip?.pax ?? '-' } Slots Available` : `${trip?.pax ?? '-'} Slots Available`}</span>
+                    <span>{schedule ? `${schedule.slotAvailable ?? schedule.slot_available ?? '-'} / ${trip?.slot ?? trip?.slot_tersedia ?? '-'} Slots Available` : `${trip?.slot ?? trip?.slot_tersedia ?? '-'} Slots Available`}</span>
                   </div>
                 </div>
               </TripCard>
@@ -381,7 +503,7 @@ export default function BookingPage() {
                   paddingRight: spacing.sm,
                   boxSizing: 'border-box'
                 }}>
-                  {(trip && trip.includes ? trip.includes : INCLUDES_LOCAL).map((item, idx) => (
+                  {INCLUDES_LOCAL.map((item, idx) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: fontSize.base }}>
                       <FontAwesomeIcon icon={faCheck} style={{ width: 16 }} />
                       <span>{item}</span>
@@ -412,7 +534,7 @@ export default function BookingPage() {
                   paddingRight: spacing.xs,
                   boxSizing: 'border-box'
                 }}>
-                  {(trip && trip.pickup_points ? trip.pickup_points : PICKUP_LOCAL).map((point, idx) => (
+                  {PICKUP_LOCAL.map((point, idx) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: fontSize.base }}>
                       <FontAwesomeIcon icon={faLocationDot} style={{ width: 16 }} />
                       <span>
@@ -475,8 +597,9 @@ export default function BookingPage() {
                   outline: 'none'
                 }}
               >
-                <option value={1}>1</option>
-                <option value={2}>2</option>
+                {Array.from({ length: totalDays }, (_, i) => i + 1).map(day => (
+                  <option key={day} value={day}>{day}</option>
+                ))}
               </select>
               <FontAwesomeIcon 
                 icon={faChevronDown} 
@@ -597,6 +720,8 @@ export default function BookingPage() {
 
         {/* Bottom Spacing */}
         <div style={{ height: spacing.xl }} />
+        </>
+        )}
       </div>
       </div>
   );

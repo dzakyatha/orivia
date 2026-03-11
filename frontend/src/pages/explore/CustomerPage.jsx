@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLocationDot, faCalendar, faUsers, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
@@ -6,7 +6,16 @@ import Navbar from '../../components/ui/Navbar.jsx';
 import Button from '../../components/ui/Button';
 import { GridTripCard, SearchFiltersCard } from '../../components/ui/Card.jsx';
 import { colors, spacing, radius, fontSize, fontFamily } from '../../styles/variables';
-import { trips, tripSchedules, DESTINATION_TYPES } from '../../mocks/mockData.js';
+import { fetchPlannerTrips } from '../../services/tripService';
+
+const DESTINATION_TYPES = [
+  'Island Exploration',
+  'Mount Hiking',
+  'Camping Ground',
+  'City Tour',
+  'Wildlife Exploration',
+  'Other'
+];
 
 export default function CustomerExplorePage() {
   const navigate = useNavigate();
@@ -19,6 +28,11 @@ export default function CustomerExplorePage() {
   const [location, setLocation] = useState('');
   const [pax, setPax] = useState('');
   const [appliedFilters, setAppliedFilters] = useState(null);
+
+  // Data from Travel Planner (table: rencanaperjalanan)
+  const [trips, setTrips] = useState([]);
+  const [tripSchedules, setTripSchedules] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const handleTypeToggle = (type) => {
     setSelectedTypes(prev => 
@@ -34,20 +48,22 @@ export default function CustomerExplorePage() {
 
   // Filter schedules by building composite view: trip master + schedule data
   // Customer only sees ACTIVE schedules
-  const filteredByStatus = tripSchedules.filter(schedule => schedule.status === 'ACTIVE');
+  const filteredByStatus = (tripSchedules || []).filter(schedule => schedule.status === 'ACTIVE');
+  console.log('[CustomerPage] After status filter:', filteredByStatus.length);
 
   // Filter by price (from trip master)
   const filteredPrice = filteredByStatus.filter((schedule) => {
-    const trip = trips.find(t => t.tripId === schedule.tripId);
-    const price = Number(trip?.price || 0);
+    const trip = (trips || []).find(t => t.tripId === schedule.tripId || t.id_rencana === schedule.tripId || t.trip_id === schedule.tripId);
+    const price = Number(trip?.price ?? trip?.harga ?? 0);
     const min = Number(priceRange?.[0] ?? -Infinity);
     const max = Number(priceRange?.[1] ?? Infinity);
     return price >= min && price <= max;
   });
+  console.log('[CustomerPage] After price filter:', filteredPrice.length);
 
   // Filter by type, duration, dates, location, pax
   const filteredTrips = filteredPrice.filter((schedule) => {
-    const trip = trips.find(t => t.tripId === schedule.tripId);
+    const trip = (trips || []).find(t => t.tripId === schedule.tripId || t.id_rencana === schedule.tripId || t.trip_id === schedule.tripId);
     if (!trip) return false;
 
     // destination type filter
@@ -56,8 +72,8 @@ export default function CustomerExplorePage() {
     }
 
     // duration filter: treat selectedDays/selectedNights as minimum required
-    const tripDays = Number(trip.duration?.days ?? 0);
-    const tripNights = Number(trip.duration?.nights ?? 0);
+    const tripDays = Number(trip.duration?.days ?? trip.jumlah_hari ?? 0);
+    const tripNights = Number(trip.duration?.nights ?? trip.jumlah_malam ?? 0);
     const minDays = Number(selectedDays ?? 0);
     const minNights = Number(selectedNights ?? 0);
 
@@ -104,16 +120,42 @@ export default function CustomerExplorePage() {
     return true;
   }).map(schedule => {
     // Merge schedule data with trip master for display
-    const trip = trips.find(t => t.tripId === schedule.tripId);
+    const trip = (trips || []).find(t => t.tripId === schedule.tripId || t.id_rencana === schedule.tripId || t.trip_id === schedule.tripId) || {};
     return {
       ...trip,
-      id: trip?.tripId,
+      id: trip?.tripId || trip?.id_rencana || trip?.trip_id,
       scheduleId: schedule.scheduleId,
       date: { start_date: schedule.start_date, end_date: schedule.end_date },
       status: schedule.status,
-      slotAvailable: schedule.slotAvailable
+      slotAvailable: schedule.slotAvailable ?? trip?.slot ?? trip?.slot_tersedia ?? 0
     };
   });
+
+  console.log('[CustomerPage] Final filteredTrips count:', filteredTrips.length);
+  if (filteredTrips.length > 0) {
+    console.log('[CustomerPage] Sample trip:', filteredTrips[0]);
+  }
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadPlanner() {
+      setLoading(true);
+      try {
+        const data = await fetchPlannerTrips();
+        if (!mounted) return;
+        console.log('[CustomerPage] Loaded trips:', data.trips);
+        console.log('[CustomerPage] Loaded schedules:', data.tripSchedules);
+        setTrips(data.trips || []);
+        setTripSchedules(data.tripSchedules || []);
+      } catch (e) {
+        console.error('[CustomerExplorePage] Error loading planner trips', e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    loadPlanner();
+    return () => { mounted = false; };
+  }, []);
 
   return (
     <div style={{ height: '100vh', overflow: 'hidden', backgroundColor: colors.accent1, backgroundImage: 'url(https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?q=90&w=1920&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', fontFamily: fontFamily.base }}>
@@ -258,15 +300,25 @@ export default function CustomerExplorePage() {
 
           {/* CARD GRID SECTION (Scrollable) */}
           <div className="cards-scroll">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.lg }}>
-              {filteredTrips.map(trip => (
-                <GridTripCard
-                  key={trip.scheduleId}
-                  trip={trip}
-                  onClick={() => navigate(`/explore/booking/${trip.scheduleId}`)}
-                />
-              ))}
-            </div>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: spacing.xl, color: colors.bg, fontSize: fontSize.lg }}>
+                Loading trips...
+              </div>
+            ) : filteredTrips.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: spacing.xl, color: colors.bg, fontSize: fontSize.lg }}>
+                No trips found. Try adjusting your filters.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.lg }}>
+                {filteredTrips.map(trip => (
+                  <GridTripCard
+                    key={trip.scheduleId}
+                    trip={trip}
+                    onClick={() => navigate(`/explore/booking/${trip.scheduleId}`)}
+                  />
+                ))}
+              </div>
+            )}
             <div style={{ height: 100 }} />
           </div>
         </div>

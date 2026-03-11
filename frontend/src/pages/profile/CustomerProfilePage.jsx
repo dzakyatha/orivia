@@ -378,7 +378,9 @@ export default function CustomerProfilePage() {
         console.error('[DEBUG] openTripDetail: response status', error.response.status);
         console.error('[DEBUG] openTripDetail: response data', error.response.data);
       } else {
-        console.error('[DEBUG] openTripDetail: message', error.message);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[DEBUG] openTripDetail: message', error.message);
+        }
       }
       
       // Set error state in booking details

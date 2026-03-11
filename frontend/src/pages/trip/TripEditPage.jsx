@@ -142,9 +142,18 @@ export default function TripEditPage() {
         
         setTripProvince(data.location?.state || data.provinsi || 'East Nusa Tenggara, Indonesia');
         setTripCountry(data.location?.country || data.negara || 'Indonesia');
-        setTripSlot(String(data.slot || data.slot_tersedia || 8));
-        setTripDay(String(data.duration?.days || data.jumlah_hari || 3));
-        setTripNight(String(data.duration?.nights || data.jumlah_malam || 2));
+        {
+          const slotVal = data.slot ?? data.slot_tersedia;
+          setTripSlot(slotVal != null ? String(slotVal) : '');
+        }
+        {
+          const daysVal = data.duration?.days ?? data.jumlah_hari;
+          setTripDay(daysVal != null ? String(daysVal) : '');
+        }
+        {
+          const nightsVal = data.duration?.nights ?? data.jumlah_malam;
+          setTripNight(nightsVal != null ? String(nightsVal) : '');
+        }
         setTripDestType(data.destinationType || data.destination_type || 'Island Exploration');
         setTripDescription(data.description || data.deskripsi || 'Labuan Bajo, located at the eastern end of Rinca Flores, Manggarai, is famous for its stunning beauty and unique wildlife.');
         

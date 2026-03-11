@@ -2,7 +2,6 @@ import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash, faTag, faUser, faLocationDot, faCalendar, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 import Button from './Button';
-import { tripSchedules } from '../../mocks/mockData';
 import {
   colors,
   spacing,
@@ -362,7 +361,7 @@ export const GridTripCard = ({ trip = {}, onClick, style = {} }) => {
 		if (!iso) return '';
 		try {
 			const d = new Date(iso);
-			const opts = { day: 'numeric', month: 'short' };
+			const opts = { day: 'numeric', month: 'long', year: 'numeric' };
 			return d.toLocaleDateString('en-GB', opts);
 		} catch (e) {
 			return iso;
@@ -431,7 +430,8 @@ export const GridTripCard = ({ trip = {}, onClick, style = {} }) => {
 					<img src={trip.image} alt={trip.name} style={img} />
 				) : (
 					<div style={{ ...img, backgroundColor: '#F2F2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>No Image</div>
-				)}
+				)
+				}
 				<div style={badgeStyle}>{trip.destinationType || trip.type || ''}</div>
 			</div>
 
@@ -447,27 +447,41 @@ export const GridTripCard = ({ trip = {}, onClick, style = {} }) => {
 					<div style={{ fontSize: fontSize.xs, color: colors.text }}>
 						<FontAwesomeIcon icon={faCalendar} size="sm" style={{ marginRight: spacing.xs }} />
 						{(function(){
-								const scheduleCount = tripSchedules ? tripSchedules.filter(s => s.tripId === trip.tripId).length : 0;
+							// Debug: log the trip object to see what we're working with
+							console.log('[GridTripCard] Rendering date for trip:', trip.tripId || trip.id, 'trip.date:', trip.date, 'trip.startDate:', trip.startDate, 'trip.start_date:', trip.start_date);
 
-								if (scheduleCount > 0) {
-									return `${scheduleCount} schedule${scheduleCount > 1 ? 's' : ''}`;
-								}
+							// Prefer schedule data embedded on the `trip` prop (merged by pages)
+							const embeddedStart = trip?.date?.start_date || trip?.start_date || trip?.startDate || null;
+							if (embeddedStart) {
+								console.log('[GridTripCard] Using embeddedStart:', embeddedStart);
+								return formatDate(embeddedStart);
+							}
 
-								// Prefer explicit start/end provided by planner DB
-								if (trip.startDate || trip.endDate) {
-									return formatDateRange(trip.startDate, trip.endDate, '');
+							// Fallback: if a global `tripSchedules` array exists (legacy), use it
+							let fallbackStart = null;
+							try {
+								if (typeof tripSchedules !== 'undefined' && Array.isArray(tripSchedules)) {
+									const s = tripSchedules.find(x => x.tripId === (trip.tripId || trip.id || trip.id_rencana));
+									fallbackStart = s?.start_date || null;
 								}
+							} catch (e) {
+								fallbackStart = null;
+							}
+							if (fallbackStart) {
+								console.log('[GridTripCard] Using fallbackStart:', fallbackStart);
+								return formatDate(fallbackStart);
+							}
 
-								const ranges = getDateRanges(trip);
-								if (Array.isArray(trip.date)) {
-									return `${ranges.length} dates`;
-								}
-								if (ranges.length > 0) {
-									const r = ranges[0];
-									return formatDateRange(r.start, r.end, '');
-								}
-								const [s,e] = getStartEnd(trip);
-								return formatDateRange(s,e, trip.date && typeof trip.date === 'string' ? trip.date : '');
+							// Last resort: derive from date ranges on the trip
+							const ranges = getDateRanges(trip);
+							if (ranges.length > 0) {
+								console.log('[GridTripCard] Using ranges[0].start:', ranges[0].start);
+								return formatDate(ranges[0].start);
+							}
+							const [s] = getStartEnd(trip);
+							const final = formatDate(s) || (trip.date && typeof trip.date === 'string' ? trip.date : '');
+							console.log('[GridTripCard] Final fallback result:', final);
+							return final;
 						})()}
 					</div>
 				</div>

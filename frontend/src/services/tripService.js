@@ -25,8 +25,8 @@ function mapTripFromPlanner(raw) {
     }
   };
 
-    const start = raw.departure_date || raw.durasi_mulai || null;
-  let end = raw.durasi_selesai || raw.end_date || null;
+  const start = raw.departure_date || raw.durasi_mulai || raw.start_date || raw.startDate || null;
+  let end = raw.durasi_selesai || raw.end_date || raw.endDate || null;
   if (!end && start && (raw.jumlah_hari || raw.jumlah_hari === 0)) {
     const days = Number(raw.jumlah_hari) || 0;
     if (days > 0) {
@@ -50,6 +50,7 @@ function mapTripFromPlanner(raw) {
     },
     status: raw.slot_tersedia ? 'Available' : 'Full',
     created_at: raw.createdAt || null,
+    image: raw.image_url || null,
     _plannerRaw: raw,
   };
 }
@@ -101,23 +102,51 @@ function mapTrip(raw) {
 /**
  * Build "tripSchedules" array from the list of mapped trips.
  * Each schedule entry gets a unique scheduleId, tripId, dates, and slot info.
+ * Handles both OpenTrip (nested schedules) and Planner (top-level dates) data.
  */
 function buildSchedules(mappedTrips) {
   const schedules = [];
   let scheduleIdCounter = 1;
 
   mappedTrips.forEach((trip) => {
-    (trip._rawSchedules || []).forEach((s) => {
+    // Case 1: OpenTrip data with nested schedules
+    if (trip._rawSchedules && trip._rawSchedules.length > 0) {
+      trip._rawSchedules.forEach((s) => {
+        schedules.push({
+          scheduleId: scheduleIdCounter++,
+          tripId: trip.tripId,
+          start_date: s.start_date,
+          end_date: s.end_date,
+          status: 'ACTIVE',
+          slotAvailable: trip.pax,
+          location: s.location,
+        });
+      });
+    }
+    // Case 2: Planner data with top-level startDate/endDate
+    else if (trip.startDate || trip.endDate) {
       schedules.push({
         scheduleId: scheduleIdCounter++,
         tripId: trip.tripId,
-        start_date: s.start_date,
-        end_date: s.end_date,
+        start_date: trip.startDate,
+        end_date: trip.endDate,
         status: 'ACTIVE',
-        slotAvailable: trip.pax, // best available estimate
-        location: s.location,
+        slotAvailable: trip.pax,
+        location: trip.location?.state || '',
       });
-    });
+    }
+    // Case 3: Fallback - create a placeholder schedule
+    else {
+      schedules.push({
+        scheduleId: scheduleIdCounter++,
+        tripId: trip.tripId,
+        start_date: null,
+        end_date: null,
+        status: 'ACTIVE',
+        slotAvailable: trip.pax,
+        location: trip.location?.state || '',
+      });
+    }
   });
 
   return schedules;
@@ -155,10 +184,10 @@ export async function fetchPlannerTrips() {
       price: p.harga || r.harga || p.price || 0,
       pax: p.slot || r.slot || 0,
       duration: { days, nights },
-      image: p.image || r.image || null,
+      image: r.image_url || p.image || r.image || null,
       destinationType: p.destination_type || p.destinationType || r.destination_type || '',
-      // DO NOT use date ranges for planner data; expose explicit start/end fields
-      date: null,
+      // Expose explicit start/end and also populate `date` for components expecting it
+      date: { start_date: startDate, end_date: endDate },
       startDate: startDate,
       endDate: endDate,
       jumlah_hari: days,
@@ -330,6 +359,7 @@ export async function fetchLatestTripByEmail(email, role) {
       location: plannerData?.location || openTripData.location || '',
       destination_type: plannerData?.destination_type || openTripData.destination_type || '',
       status: plannerData?.status || openTripData.status || 'Upcoming',
+      image: plannerData?.image_url || plannerData?.image || openTripData.image || null,
       _openTripRaw: openTripData,
       _plannerRaw: plannerData,
     };
@@ -358,6 +388,59 @@ export async function fetchLatestTripByEmail(email, role) {
       console.error('[fetchLatestTripByEmail] Unknown error, throwing generic');
       throw new Error('Failed to fetch latest trip');
     }
+  }
+}
+
+/**
+ * Fetch latest booked trip for the current user
+ * Uses the new /bookings/user/me endpoint and fetches trip details from planner
+ * 
+ * @returns {Object|null} Latest booked trip with details or null if no bookings found
+ */
+export async function fetchLatestBookedTrip() {
+  try {
+    console.log('[fetchLatestBookedTrip] Fetching user bookings...');
+    
+    // Import bookingService to get bookings
+    const { getMyBookings } = await import('./bookingService');
+    const bookings = await getMyBookings();
+    
+    if (!bookings || bookings.length === 0) {
+      console.log('[fetchLatestBookedTrip] No bookings found');
+      return null;
+    }
+    
+    // Sort by booking_id (UUID) descending to get most recent (UUIDs are time-ordered)
+    const sortedBookings = bookings.sort((a, b) => {
+      return b.booking_id.localeCompare(a.booking_id);
+    });
+    
+    const latestBooking = sortedBookings[0];
+    console.log('[fetchLatestBookedTrip] Latest booking:', latestBooking);
+    
+    // Fetch trip details from travel planner using id_rencana
+    try {
+      console.log('[fetchLatestBookedTrip] Fetching trip details for:', latestBooking.id_rencana);
+      const tripData = await fetchPlannerTripDetail(latestBooking.id_rencana);
+      
+      if (tripData) {
+        // Merge booking and trip data
+        return {
+          ...tripData,
+          booking_id: latestBooking.booking_id,
+          booking_status: latestBooking.booking_status,
+          participants: latestBooking.participants,
+          participant_count: latestBooking.participant_count
+        };
+      }
+    } catch (error) {
+      console.error('[fetchLatestBookedTrip] Error fetching trip details:', error);
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('[fetchLatestBookedTrip] Error:', error);
+    return null;
   }
 }
 
@@ -452,6 +535,27 @@ export async function fetchBookings(tripId = null) {
 export async function fetchBooking(bookingId) {
   const res = await api.get(`/opentrip/bookings/${bookingId}`);
   return res.data;
+}
+
+/** Fetch all bookings for the current user with participants */
+export async function fetchUserBookings() {
+  try {
+    console.log('[fetchUserBookings] Fetching user bookings from /user/me');
+    const res = await opentripAPI.get('/bookings/user/me');
+    console.log('[fetchUserBookings] Received bookings:', res?.data);
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (err) {
+    console.error('[fetchUserBookings] Error fetching user bookings:', err);
+    // Fallback to gateway
+    try {
+      const res2 = await api.get('/opentrip/bookings/user/me');
+      console.log('[fetchUserBookings] Received bookings from gateway:', res2?.data);
+      return Array.isArray(res2.data) ? res2.data : [];
+    } catch (err2) {
+      console.error('[fetchUserBookings] Gateway also failed:', err2);
+      throw err2;
+    }
+  }
 }
 
 /** Fetch all bookings for a specific trip_id */
@@ -571,6 +675,7 @@ export default {
   updateItinerary,
   fetchBookings,
   fetchBooking,
+  fetchUserBookings,
   createBooking,
   confirmBooking,
   cancelBooking,

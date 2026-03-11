@@ -8,16 +8,18 @@ import Button from '../../components/ui/Button';
 import extendAgentBg from '../../assets/images/extendagentbg.jpg';
 import { colors, spacing, radius, fontSize, fontFamily } from '../../styles/variables';
 import { TripCard, ImageUploadCard, InputField, IconButton, AddButton, UploadButton, CardHeader, SectionTitle, ImagePreview, TextLink } from '../../components/ui/Card';
-import { trips, tripSchedules, DESTINATION_TYPES } from '../../mocks/mockData';
 import { fetchPlannerTripDetail, updatePlannerTrip } from '../../services/tripService';
 
-const DEST_OPTIONS = DESTINATION_TYPES || [
+const DESTINATION_TYPES = [
   'Island Exploration',
   'Mount Hiking',
   'Camping Ground',
   'City Tour',
-  'Wildlife Exploration'
+  'Wildlife Exploration',
+  'Other'
 ];
+
+const DEST_OPTIONS = DESTINATION_TYPES;
 
 export default function TripEditPage() {
   const navigate = useNavigate();
@@ -33,59 +35,32 @@ export default function TripEditPage() {
   const [error, setError] = useState(null);
   const [tripData, setTripData] = useState(null);
   
-  // Determine defaultTrip: use fetched tripData if available, else mock
-  let defaultTrip = {};
-  if (tripData) {
-    defaultTrip = tripData;
-  } else if (trips && trips.length > 0) {
-    if (qTripId) {
-      defaultTrip = trips.find(t => String(t.tripId) === String(qTripId)) || trips[0];
-    } else {
-      defaultTrip = trips[0];
-    }
-  }
-  const [tripName, setTripName] = useState(() => defaultTrip.name || 'Labuan Bajo');
+  // Determine defaultTrip from fetched data only
+  let defaultTrip = tripData || {};
+  
+  const [tripName, setTripName] = useState(() => defaultTrip.name || '');
   const [tripPrice, setTripPrice] = useState(() => {
     const p = defaultTrip.price;
-    if (p == null) return '1.450.000';
+    if (p == null) return '';
     if (typeof p === 'number') return String(p).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     return String(p);
   });
-  const [tripProvince, setTripProvince] = useState(() => defaultTrip.location?.state || 'East Nusa Tenggara, Indonesia');
-  const [tripCountry, setTripCountry] = useState(() => defaultTrip.location?.country || 'Indonesia');
-  const [tripSlot, setTripSlot] = useState(() => {
-    // Get first schedule's slot for this trip
-    const firstSchedule = tripSchedules.find(s => s.tripId === defaultTrip.tripId);
-    return (firstSchedule?.slotAvailable != null ? String(firstSchedule.slotAvailable) : '8');
-  });
-  const [tripDay, setTripDay] = useState(() => defaultTrip.duration?.days ? String(defaultTrip.duration.days) : '3');
-  const [tripNight, setTripNight] = useState(() => defaultTrip.duration?.nights ? String(defaultTrip.duration.nights) : '2');
-  const [tripDestType, setTripDestType] = useState(() => defaultTrip.destinationType || defaultTrip.type || 'Island Exploration');
-  const [tripDescription, setTripDescription] = useState(() => defaultTrip.description || 'Labuan Bajo, located at the eastern end of Rinca Flores, Manggarai, is famous for its stunning beauty and unique wildlife. The island is also home to the prehistoric Komodo dragons and monitor lizards. You can enjoy attractions for the local heritage and cultural aspects of the surrounding area.');
+  const [tripProvince, setTripProvince] = useState(() => defaultTrip.location?.state || defaultTrip.provinsi || '');
+  const [tripCountry, setTripCountry] = useState(() => defaultTrip.location?.country || defaultTrip.negara || '');
+  const [tripSlot, setTripSlot] = useState(() => String(defaultTrip.slot || defaultTrip.slot_tersedia || ''));
+  const [tripDay, setTripDay] = useState(() => defaultTrip.duration?.days ? String(defaultTrip.duration.days) : '');
+  const [tripNight, setTripNight] = useState(() => defaultTrip.duration?.nights ? String(defaultTrip.duration.nights) : '');
+  const [tripDestType, setTripDestType] = useState(() => defaultTrip.destinationType || defaultTrip.destination_type || 'Island Exploration');
+  const [tripDescription, setTripDescription] = useState(() => defaultTrip.description || defaultTrip.deskripsi || '');
   const MAX_IMAGES = 4;
   const [imagePreviews, setImagePreviews] = useState(() => {
     const imgs = defaultTrip.images || [];
-    const base = imgs.slice(0, MAX_IMAGES);
+    const base = imgs.slice(0, MAX_IMAGES).map(img => typeof img === 'string' ? img : img?.url).filter(Boolean);
     while (base.length < MAX_IMAGES) base.push(null);
-    if (base.every(i => !i)) {
-      return [
-        'https://via.placeholder.com/500x300/8B7355/FFFFFF?text=Labuan+Bajo+1',
-        'https://via.placeholder.com/100x100/8B7355/FFFFFF?text=Image+2',
-        'https://via.placeholder.com/100x100/8B7355/FFFFFF?text=Image+3',
-        'https://via.placeholder.com/100x100/8B7355/FFFFFF?text=Image+4'
-      ];
-    }
     return base;
   });
   const fileInputRef = useRef(null);
-  const [schedules, setSchedules] = useState(() => {
-    if (!defaultTrip || !defaultTrip.tripId) return [];
-    const relatedSchedules = tripSchedules.filter(s => s.tripId === defaultTrip.tripId);
-    if (relatedSchedules.length) {
-      return relatedSchedules.map(s => ({ id: s.scheduleId, text: `${s.start_date || ''} - ${s.end_date || ''}` }));
-    }
-    return [];
-  });
+  const [schedules, setSchedules] = useState(() => []);
   const [pickupPoints, setPickupPoints] = useState(() => {
     const pts = defaultTrip.pickup_points || [];
     if (!pts.length) return [];

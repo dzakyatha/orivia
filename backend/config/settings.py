@@ -324,7 +324,7 @@ if LOGGING_ENABLED:
     LOGGING['loggers']['django.security']['handlers'].append('file')
 
 # Microservices URL
-TRAVEL_PLANNER_URL = config('TRAVEL_PLANNER_URL', default='http://localhost:8006') # localhost for development
+TRAVEL_PLANNER_URL = config('TRAVEL_PLANNER_URL', default='http://localhost:8007') # localhost for development
 OPEN_TRIP_URL = config('OPEN_TRIP_URL', default='http://localhost:8002')
 
 # Redis Configuration

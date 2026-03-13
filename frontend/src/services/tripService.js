@@ -609,6 +609,56 @@ export async function updatePlannerTrip(tripId, updateData) {
   }
 }
 
+/**
+ * Save a new trip with all related data (images, includes, pickup points) in one transaction.
+ * @param {Object} tripData - Trip data object
+ * @param {string} tripData.nama - Trip name
+ * @param {string} tripData.deskripsi - Trip description (optional)
+ * @param {number} tripData.harga - Trip price
+ * @param {number} tripData.slot - Available slots
+ * @param {string} tripData.provinsi - Province/State
+ * @param {string} tripData.negara - Country
+ * @param {string} tripData.destination_type - Destination type
+ * @param {number} tripData.jumlah_hari - Number of days
+ * @param {number} tripData.jumlah_malam - Number of nights
+ * @param {string} tripData.durasi_mulai - Start date (YYYY-MM-DD)
+ * @param {string} tripData.durasi_selesai - End date (YYYY-MM-DD)
+ * @param {Array<string>} tripData.images - Array of image URLs
+ * @param {Array<string>} tripData.includes - Array of include item names
+ * @param {Array<string>} tripData.pickup_points - Array of pickup point locations
+ * @returns {Promise<Object>} Response with success, trip_id, trip_name, and message
+ */
+export async function saveTrip(tripData) {
+  try {
+    console.log('[saveTrip] Saving trip with data:', tripData);
+    
+    const response = await api.post('/planner/bulk-create', {
+      nama: tripData.nama,
+      deskripsi: tripData.deskripsi || '',
+      harga: tripData.harga,
+      slot: tripData.slot,
+      provinsi: tripData.provinsi,
+      negara: tripData.negara,
+      destination_type: tripData.destination_type,
+      jumlah_hari: tripData.jumlah_hari,
+      jumlah_malam: tripData.jumlah_malam,
+      durasi_mulai: tripData.durasi_mulai,
+      durasi_selesai: tripData.durasi_selesai,
+      id_lokasi: tripData.id_lokasi || null,
+      images: tripData.images || [],
+      includes: tripData.includes || [],
+      pickup_points: tripData.pickup_points || [],
+      trip_planner: tripData.trip_planner || {}
+    });
+    
+    console.log('[saveTrip] Trip saved successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[saveTrip] Error saving trip:', error);
+    throw error.response?.data || error;
+  }
+}
+
 export default {
   fetchTrips,
   fetchTrip,
@@ -632,4 +682,5 @@ export default {
   fetchLatestTrip,
   fetchPickupPoints,
   updatePlannerTrip,
+  saveTrip,
 };

@@ -10,6 +10,7 @@ import extendAgentBg from '../../assets/images/extendagentbg.jpg';
 import { colors, spacing, radius, fontSize, fontFamily } from '../../styles/variables';
 import { DESTINATION_TYPES } from '../../mocks/mockData.js';
 import { TripCard, ImageUploadCard, InputField, IconButton, AddButton, UploadButton, CardHeader, SectionTitle, ImagePreview, TextLink } from '../../components/ui/Card';
+import { saveTrip } from '../../services/tripService.js';
 
 const NewTripPage = () => {
 	const navigate = useNavigate();
@@ -86,6 +87,13 @@ const NewTripPage = () => {
 	const [description, setDescription] = useState('');
 	const [destType, setDestType] = useState('');
 	const [destTypeCustom, setDestTypeCustom] = useState('');
+	const [tripName, setTripName] = useState('');
+	const [tripSlot, setTripSlot] = useState('');
+	const [tripProvinsi, setTripProvinsi] = useState('');
+	const [tripNegara, setTripNegara] = useState('');
+	const [isSaving, setIsSaving] = useState(false);
+	const [saveError, setSaveError] = useState('');
+	const [saveSuccess, setSaveSuccess] = useState(false);
 	const makeEmptyRows = (count = 3) => Array.from({ length: count }, (_, i) => ({ id: i + 1, time: '', duration: '', activity: '', location: '' }));
 	const [tripPlanner, setTripPlanner] = useState({
 		1: makeEmptyRows(3)
@@ -367,6 +375,141 @@ const NewTripPage = () => {
 		return s.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 	};
 
+	const handleSaveTrip = async () => {
+		setSaveError('');
+		setSaveSuccess(false);
+		const normalizedPrice = Number(String(tripPrice || '').replace(/\D/g, ''));
+
+		// Validation
+		if (!tripName.trim()) {
+			setSaveError('Nama trip harus diisi');
+			return;
+		}
+		if (!tripPrice || normalizedPrice <= 0) {
+			setSaveError('Harga harus diisi dan lebih dari 0');
+			return;
+		}
+		if (!tripSlot || parseInt(tripSlot) <= 0) {
+			setSaveError('Slot harus diisi dan lebih dari 0');
+			return;
+		}
+		if (!tripProvinsi.trim()) {
+			setSaveError('Provinsi harus diisi');
+			return;
+		}
+		if (!tripNegara.trim()) {
+			setSaveError('Negara harus diisi');
+			return;
+		}
+		if (!tripDays || parseInt(tripDays) < 1) {
+			setSaveError('Jumlah hari harus minimal 1');
+			return;
+		}
+		if (!schedules || schedules.length === 0) {
+			setSaveError('Minimal tambahkan 1 jadwal');
+			return;
+		}
+
+		// Get destination type
+		const destinationType = destType === 'Other' ? destTypeCustom : destType;
+		if (!destinationType.trim()) {
+			setSaveError('Tipe destinasi harus dipilih');
+			return;
+		}
+
+		// Get start and end dates from first schedule
+		const firstSchedule = schedules[0]?.text;
+		if (!firstSchedule) {
+			setSaveError('Jadwal tidak valid');
+			return;
+		}
+
+		const dateMatch = firstSchedule.match(/(\d{4}-\d{2}-\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})/);
+		if (!dateMatch) {
+			setSaveError('Format tanggal tidak valid');
+			return;
+		}
+
+		const durasi_mulai = dateMatch[1];
+		const durasi_selesai = dateMatch[2];
+
+		// Collect selected includes
+		const selectedIncludes = includes
+			.filter(inc => inc.checked)
+			.map(inc => inc.name);
+
+		// Collect selected pickup points
+		const selectedPickupPoints = pickupPoints
+			.filter(pnt => pnt.checked)
+			.map(pnt => pnt.location);
+
+		// Collect image URLs (from previews)
+		const imageUrls = imagePreviews.filter(Boolean);
+
+		// Collect trip planner payload by day
+		const plannerPayload = Object.entries(tripPlanner || {}).reduce((acc, [dayKey, rows]) => {
+			const normalizedRows = (rows || [])
+				.map((row) => {
+					const rawTime = (row?.time || '').trim();
+					// Support legacy input like 06.00-07.00, keep only start time
+					const startOnly = rawTime ? rawTime.split('-')[0].trim() : '';
+					return {
+						time: startOnly,
+						duration: (row?.duration || '').toString().trim(),
+						activity: (row?.activity || '').trim(),
+						location: (row?.location || '').trim()
+					};
+				})
+				.filter((row) => row.time || row.duration || row.activity || row.location);
+
+			if (normalizedRows.length > 0) {
+				acc[String(dayKey)] = normalizedRows;
+			}
+
+			return acc;
+		}, {});
+
+		setIsSaving(true);
+
+		try {
+			const tripData = {
+				nama: tripName.trim(),
+				deskripsi: description.trim(),
+				harga: normalizedPrice,
+				slot: parseInt(tripSlot),
+				provinsi: tripProvinsi.trim(),
+				negara: tripNegara.trim(),
+				destination_type: destinationType.trim(),
+				jumlah_hari: parseInt(tripDays),
+				jumlah_malam: parseInt(tripNights) || 0,
+				durasi_mulai,
+				durasi_selesai,
+				images: imageUrls,
+				includes: selectedIncludes,
+				pickup_points: selectedPickupPoints,
+				trip_planner: plannerPayload
+			};
+
+			console.log('[handleSaveTrip] Saving trip:', tripData);
+
+			const result = await saveTrip(tripData);
+
+			console.log('[handleSaveTrip] Trip saved successfully:', result);
+
+			setSaveSuccess(true);
+			setTimeout(() => {
+				// Redirect to agent page after 2 seconds
+				navigate('/trip/agent');
+			}, 2000);
+		} catch (error) {
+			console.error('[handleSaveTrip] Error saving trip:', error);
+			const errorMsg = error?.message || error?.detail || 'Gagal menyimpan trip. Silakan coba lagi.';
+			setSaveError(errorMsg);
+		} finally {
+			setIsSaving(false);
+		}
+	};
+
 	const filledCount = imagePreviews.filter(Boolean).length;
 	const page = {
 		minHeight: '100vh',
@@ -503,17 +646,42 @@ const NewTripPage = () => {
 								<CardHeader>Trip Detail</CardHeader>
 
 								<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md, marginBottom: spacing.md }}>
-									<InputField label="Name" type="text" />
-									<InputField label="Price" type="text" />
+									<InputField 
+										label="Name" 
+										type="text"
+										value={tripName}
+										onChange={(e) => setTripName(e.target.value)}
+									/>
+									<InputField 
+										label="Price" 
+										type="text"
+										value={tripPrice}
+										onChange={(e) => setTripPrice(e.target.value)}
+									/>
 								</div>
 
 								<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md, marginBottom: spacing.md }}>
-									<InputField label="Province / State" type="text" />
-									<InputField label="Country" type="text" />
+									<InputField 
+										label="Province / State" 
+										type="text"
+										value={tripProvinsi}
+										onChange={(e) => setTripProvinsi(e.target.value)}
+									/>
+									<InputField 
+										label="Country" 
+										type="text"
+										value={tripNegara}
+										onChange={(e) => setTripNegara(e.target.value)}
+									/>
 								</div>
 
 								<div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: spacing.md, marginBottom: spacing.md }}>
-									<InputField label="Slot" type="number" />
+									<InputField 
+										label="Slot" 
+										type="number"
+										value={tripSlot}
+										onChange={(e) => setTripSlot(e.target.value)}
+									/>
 									<div>
 										<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
 											<label style={{ fontSize: fontSize.sm, color: colors.text, fontWeight: 500, margin: 0 }}>
@@ -705,7 +873,7 @@ const NewTripPage = () => {
 															type="text"
 															value={activity.time}
 															onChange={(e) => handleActivityChange(openDay, activity.id, 'time', e.target.value)}
-															placeholder="06.00 - 07.00"
+															placeholder="06.00"
 															style={{
 																width: '100%',
 																padding: spacing.sm,
@@ -810,9 +978,45 @@ const NewTripPage = () => {
 
 						{/* Create Trip Button */}
 						<div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: spacing.lg }}>
-							<Button variant="primary" style={{ minWidth: '200px', padding: `${spacing.md} ${spacing.xl}` }}>
-								<FontAwesomeIcon icon={faPlus} style={{ marginRight: spacing.xs }} />
-								<span style={{ fontWeight: 700, fontFamily: fontFamily.base}}>Save Trip</span>							</Button>
+							<div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, width: '100%', alignItems: 'flex-end' }}>
+								{saveError && (
+									<div style={{ 
+										padding: `${spacing.md} ${spacing.lg}`,
+										backgroundColor: colors.error,
+										color: '#fff',
+										borderRadius: radius.md,
+										fontSize: fontSize.sm,
+										width: '100%',
+										textAlign: 'center'
+									}}>
+										{saveError}
+									</div>
+								)}
+								{saveSuccess && (
+									<div style={{ 
+										padding: `${spacing.md} ${spacing.lg}`,
+										backgroundColor: '#4caf50',
+										color: '#fff',
+										borderRadius: radius.md,
+										fontSize: fontSize.sm,
+										width: '100%',
+										textAlign: 'center'
+									}}>
+										Trip berhasil disimpan! Redirecting...
+									</div>
+								)}
+								<Button 
+									variant="primary" 
+									style={{ minWidth: '200px', padding: `${spacing.md} ${spacing.xl}` }}
+									onClick={handleSaveTrip}
+									disabled={isSaving}
+								>
+									<FontAwesomeIcon icon={faPlus} style={{ marginRight: spacing.xs }} />
+									<span style={{ fontWeight: 700, fontFamily: fontFamily.base}}>
+										{isSaving ? 'Saving...' : 'Save Trip'}
+									</span>
+								</Button>
+							</div>
 						</div>
 					</div>
 				</div>

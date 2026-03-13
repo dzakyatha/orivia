@@ -563,16 +563,55 @@ export default function TripEditPage() {
 
     try {
       console.log('[TripEditPage] Saving trip:', qTripId);
-      
+
       // Parse price: remove dots and convert to number
       const priceNumber = parseFloat(String(tripPrice).replace(/\./g, ''));
-      
+
       // Parse slot
       const slotNumber = parseInt(tripSlot, 10);
-      
+
       // Parse days and nights
       const daysNumber = parseInt(tripDay, 10);
       const nightsNumber = parseInt(tripNight, 10);
+
+      // Parse first schedule into start/end date when present
+      const firstSchedule = schedules[0]?.text || '';
+      const dateMatch = firstSchedule.match(/(\d{4}-\d{2}-\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})/);
+      const durasi_mulai = dateMatch?.[1] || tripData?.startDate || null;
+      const durasi_selesai = dateMatch?.[2] || tripData?.endDate || null;
+
+      // Keep only selected list items to mirror create flow
+      const selectedIncludes = includes
+        .filter((inc) => inc.checked)
+        .map((inc) => inc.name);
+
+      const selectedPickupPoints = pickupPoints
+        .filter((pnt) => pnt.checked)
+        .map((pnt) => pnt.location);
+
+      const imageUrls = imagePreviews
+        .filter((url) => Boolean(url) && typeof url === 'string' && !url.startsWith('blob:'));
+
+      const plannerPayload = Object.entries(tripPlanner || {}).reduce((acc, [dayKey, rows]) => {
+        const normalizedRows = (rows || [])
+          .map((row) => {
+            const rawTime = (row?.time || '').trim();
+            const startOnly = rawTime ? rawTime.split('-')[0].trim() : '';
+            return {
+              time: startOnly,
+              duration: (row?.duration || '').toString().trim(),
+              activity: (row?.activity || '').trim(),
+              location: (row?.location || '').trim()
+            };
+          })
+          .filter((row) => row.time || row.duration || row.activity || row.location);
+
+        if (normalizedRows.length > 0) {
+          acc[String(dayKey)] = normalizedRows;
+        }
+
+        return acc;
+      }, {});
       
       // Prepare update data
       const updateData = {
@@ -585,6 +624,12 @@ export default function TripEditPage() {
         days: daysNumber,
         nights: nightsNumber,
         destinationType: tripDestType,
+        durasi_mulai,
+        durasi_selesai,
+        images: imageUrls,
+        includes: selectedIncludes,
+        pickup_points: selectedPickupPoints,
+        trip_planner: plannerPayload,
       };
       
       console.log('[TripEditPage] Update data:', updateData);
@@ -1017,7 +1062,7 @@ export default function TripEditPage() {
                             type="text"
                             value={activity.time}
                             onChange={(e) => handleActivityChange(openDay, activity.id, 'time', e.target.value)}
-                            placeholder="06.00 - 07.00"
+                            placeholder="06.00"
                             style={{
                               width: '100%',
                               padding: spacing.sm,

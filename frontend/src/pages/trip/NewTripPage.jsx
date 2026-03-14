@@ -827,7 +827,7 @@ const NewTripPage = () => {
 
 					{/* Trip Planner Section */}
 					<div style={{ marginTop: spacing.xl }}>
-						<h2 style={{ fontSize: fontSize.xl, fontWeight: 1000, color: colors.accent1, marginBottom: spacing.lg }}>
+						<h2 style={{ fontSize: fontSize.xl, fontWeight: 1000, color: colors.accent5, marginBottom: spacing.lg }}>
 							Trip Planner
 						</h2>
 						

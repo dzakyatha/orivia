@@ -692,10 +692,6 @@ const CheckoutPage = () => {
 							<div style={{ color: colors.accent5, fontSize: fontSize.sm }}>Subtotal</div>
 							<div style={{ color: colors.accent5, fontSize: fontSize.sm }}>Rp{(tripPrice * passengers).toLocaleString('id-ID')}</div>
 						</div>
-						<div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-							<div style={{ color: colors.accent5, fontSize: fontSize.sm }}>Pick Up Fee</div>
-							<div style={{ color: colors.accent5, fontSize: fontSize.sm }}>Rp{pickupTotal.toLocaleString('id-ID')}</div>
-						</div>
 					</div>
 
 					<div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

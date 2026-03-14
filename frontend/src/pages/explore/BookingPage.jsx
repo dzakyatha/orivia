@@ -472,7 +472,7 @@ export default function BookingPage() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: fontSize.base }}>
                     <FontAwesomeIcon icon={faUsers} />
-                    <span>{schedule ? `${schedule.slotAvailable ?? schedule.slot_available ?? '-'} / ${trip?.slot ?? trip?.slot_tersedia ?? '-'} Slots Available` : `${trip?.slot ?? trip?.slot_tersedia ?? '-'} Slots Available`}</span>
+                    <span>{`${trip?.slot_tersedia ?? trip?.slotTersedia ?? '-'} / ${trip?.slot ?? '-'} Slots Available`}</span>
                   </div>
                 </div>
               </TripCard>
@@ -556,7 +556,7 @@ export default function BookingPage() {
           <h2 style={{
             fontSize: '36px',
             fontWeight: 800,
-            color: colors.bg,
+            color: colors.accent5,
             marginBottom: spacing.lg,
             fontFamily: fontFamily.base
           }}>

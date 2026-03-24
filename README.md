@@ -1,5 +1,7 @@
 # Orivia
 
+![Landing Page](img/landing_page.png)
+
 Orivia is a modern travel platform designed to help users plan their trips and book open trip packages. It is built with a microservice architecture to ensure scalability and separation of concerns.
 
 - **Frontend**: A responsive user interface built with **React** and **Vite**
